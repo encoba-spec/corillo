@@ -59,18 +59,23 @@ export async function GET(request: NextRequest) {
     let handlerTestError = null;
     try {
       const { handlers } = await import("@/lib/auth");
-      // Create a mock request to test the GET handler
+      const { NextRequest: NR } = await import("next/server");
+      // Create a NextRequest (which has nextUrl) to test the GET handler
       const url = new URL("/api/auth/signin/strava", request.url);
-      const mockReq = new Request(url.toString(), { method: "GET" });
+      const mockReq = new NR(url.toString());
+      handlerTestError = {
+        hasNextUrl: !!mockReq.nextUrl,
+        nextUrlHref: mockReq.nextUrl?.href,
+      };
       const response = await handlers.GET(mockReq as any);
       handlerTestError = {
+        ...handlerTestError,
         status: response.status,
         statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
         locationHeader: response.headers.get("location"),
       };
     } catch (e: any) {
-      handlerTestError = { message: e.message, stack: e.stack?.split("\n").slice(0, 10) };
+      handlerTestError = { ...handlerTestError, message: e.message, stack: e.stack?.split("\n").slice(0, 10) };
     }
 
     return NextResponse.json({
