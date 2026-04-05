@@ -1,0 +1,235 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [postgis]
+}
+
+model User {
+  id                   String   @id @default(cuid())
+  name                 String?
+  email                String?  @unique
+  emailVerified        DateTime?
+  image                String?
+  city                 String?
+  state                String?
+  country              String?
+
+  // Strava OAuth
+  stravaAthleteId      Int?     @unique
+  stravaAccessToken    String?
+  stravaRefreshToken   String?
+  stravaTokenExpires   DateTime?
+
+  // Computed running aggregates
+  averagePace          Float?   // min/km
+  averageDistance       Float?   // km
+  weeklyFrequency      Float?   // runs per week
+  preferredDays        Int[]    // 0=Sun..6=Sat
+  preferredTimeSlot    String?  // early_morning, morning, midday, evening, night
+
+  // Privacy
+  isDiscoverable       Boolean  @default(false)
+  locationPrecision    String   @default("neighborhood") // neighborhood, city, hidden
+  shareSchedule        Boolean  @default(true)
+  sharePace            Boolean  @default(true)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  activities           Activity[]
+  runningZones         RunningZone[]
+  schedulePatterns     SchedulePattern[]
+  searchPreferences    SearchPreferences?
+  plannedRuns          PlannedRun[]
+  plannedRunJoins      PlannedRunParticipant[]
+  threadMemberships    ThreadMember[]
+  sentMessages         Message[]
+  accounts             Account[]
+  sessions             Session[]
+}
+
+// Auth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Activity {
+  id                String   @id @default(cuid())
+  userId            String
+  stravaActivityId  BigInt   @unique
+  sportType         String   // Run, TrailRun, etc.
+  name              String?
+  startDate         DateTime
+  elapsedTime       Int      // seconds
+  movingTime        Int?     // seconds
+  distance          Float    // meters
+  averageSpeed      Float?   // m/s
+  startLatitude     Float?
+  startLongitude    Float?
+  endLatitude       Float?
+  endLongitude      Float?
+  dayOfWeek         Int      // 0=Sun..6=Sat
+  timeSlot          String   // early_morning, morning, midday, evening, night
+  isHidden          Boolean  @default(false)
+
+  // PostGIS geometry - populated by DB trigger
+  startPoint        Unsupported("geometry(Point,4326)")?
+
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([startDate])
+}
+
+model RunningZone {
+  id             String @id @default(cuid())
+  userId         String
+  latitude       Float  // fuzzed center
+  longitude      Float  // fuzzed center
+  activityCount  Int
+  radius         Float  // meters
+  label          String?
+
+  // PostGIS geometry - populated by DB trigger
+  center         Unsupported("geometry(Point,4326)")?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SchedulePattern {
+  id        String @id @default(cuid())
+  userId    String
+  dayOfWeek Int    // 0=Sun..6=Sat
+  timeSlot  String // early_morning, morning, midday, evening, night
+  frequency Float  // 0.0-1.0: fraction of weeks
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOfWeek, timeSlot])
+}
+
+model SearchPreferences {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  maxDistanceKm      Float    @default(10)
+  preferredDays      Int[]    // 0=Sun..6=Sat, empty = any
+  preferredTimeSlots String[] // empty = any
+  minPace            Float    @default(3.0)  // min/km
+  maxPace            Float    @default(10.0) // min/km
+  minDistance         Float    @default(1.0)  // km
+  maxDistance         Float    @default(50.0) // km
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PlannedRun {
+  id               String   @id @default(cuid())
+  creatorId        String
+  title            String
+  description      String?
+  scheduledAt      DateTime
+  estimatedPace    Float?   // min/km
+  estimatedDistance Float?  // km
+  latitude         Float
+  longitude        Float
+  locationName     String?
+  maxParticipants  Int      @default(10)
+
+  // PostGIS geometry - populated by DB trigger
+  meetingPoint     Unsupported("geometry(Point,4326)")?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  creator      User                    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  participants PlannedRunParticipant[]
+
+  @@index([scheduledAt])
+}
+
+model PlannedRunParticipant {
+  id       String   @id @default(cuid())
+  runId    String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  run  PlannedRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, userId])
+}
+
+model Thread {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  ThreadMember[]
+  messages Message[]
+}
+
+model ThreadMember {
+  id         String    @id @default(cuid())
+  threadId   String
+  userId     String
+  lastReadAt DateTime?
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  threadId  String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
