@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Check env vars
     const envCheck = {
@@ -9,6 +10,7 @@ export async function GET() {
       hasStravaClientId: !!process.env.STRAVA_CLIENT_ID,
       stravaClientIdLength: process.env.STRAVA_CLIENT_ID?.length || 0,
       hasStravaClientSecret: !!process.env.STRAVA_CLIENT_SECRET,
+      stravaClientSecretLength: process.env.STRAVA_CLIENT_SECRET?.length || 0,
       hasAuthTrustHost: !!process.env.AUTH_TRUST_HOST,
       authTrustHostValue: process.env.AUTH_TRUST_HOST,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
@@ -42,11 +44,42 @@ export async function GET() {
       prismaError = { message: e.message, stack: e.stack?.split("\n").slice(0, 5) };
     }
 
+    // Try to simulate what the signin handler does
+    let signinSimError = null;
+    try {
+      const { auth } = await import("@/lib/auth");
+      // Just test that auth() can be called
+      const session = await auth();
+      signinSimError = { session: session ? "exists" : "null", error: null };
+    } catch (e: any) {
+      signinSimError = { message: e.message, stack: e.stack?.split("\n").slice(0, 10) };
+    }
+
+    // Try to manually construct what the signin/strava route does
+    let handlerTestError = null;
+    try {
+      const { handlers } = await import("@/lib/auth");
+      // Create a mock request to test the GET handler
+      const url = new URL("/api/auth/signin/strava", request.url);
+      const mockReq = new Request(url.toString(), { method: "GET" });
+      const response = await handlers.GET(mockReq as any);
+      handlerTestError = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        locationHeader: response.headers.get("location"),
+      };
+    } catch (e: any) {
+      handlerTestError = { message: e.message, stack: e.stack?.split("\n").slice(0, 10) };
+    }
+
     return NextResponse.json({
       envCheck,
       authImportError,
       authConfigKeys,
       prismaError,
+      signinSimError,
+      handlerTestError,
     });
   } catch (e: any) {
     return NextResponse.json({
