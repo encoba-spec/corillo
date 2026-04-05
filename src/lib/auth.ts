@@ -1,59 +1,8 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Strava from "next-auth/providers/strava";
-import { customFetch } from "@auth/core";
 import { prisma } from "./prisma";
 import type { NextAuthConfig } from "next-auth";
-
-/**
- * Custom fetch for Strava OAuth provider.
- * Strava's token endpoint returns non-standard fields (athlete object)
- * that cause oauth4webapi strict validation to fail.
- * We intercept the token response and return only standard OAuth2 fields.
- */
-async function stravaFetchHandler(
-  input: RequestInfo | URL,
-  init?: RequestInit
-): Promise<Response> {
-  const url =
-    typeof input === "string"
-      ? input
-      : input instanceof URL
-        ? input.href
-        : input instanceof Request
-          ? input.url
-          : "";
-
-  // Intercept the token endpoint request
-  if (url.includes("strava.com") && url.includes("oauth/token")) {
-    const response = await fetch(input, init);
-    const body = await response.json();
-
-    if (!body.access_token) {
-      console.error("[strava] token error:", JSON.stringify(body));
-      return new Response(JSON.stringify(body), {
-        status: response.status,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    // Return only standard OAuth2 fields (strip athlete object, etc.)
-    const conformed = {
-      access_token: body.access_token,
-      refresh_token: body.refresh_token,
-      expires_at: body.expires_at,
-      token_type: body.token_type || "Bearer",
-    };
-
-    return new Response(JSON.stringify(conformed), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // Pass through all other requests (userinfo, etc.)
-  return fetch(input, init);
-}
 
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
@@ -67,7 +16,6 @@ export const authConfig: NextAuthConfig = {
           approval_prompt: "auto",
         },
       },
-      [customFetch]: stravaFetchHandler,
     }),
   ],
   callbacks: {
