@@ -127,25 +127,7 @@ const stravaProvider = {
       response_type: "code",
     },
   },
-  token: {
-    url: "https://www.strava.com/oauth/token",
-    conform: async (response: Response) => {
-      // Strava returns non-standard fields (athlete object) in the token response.
-      // Strip them to only return standard OAuth2 fields.
-      const body = await response.json();
-      if (body.access_token) {
-        const conformed = {
-          access_token: body.access_token,
-          refresh_token: body.refresh_token,
-          expires_at: body.expires_at,
-          token_type: body.token_type || "Bearer",
-        };
-        return new Response(JSON.stringify(conformed), response);
-      }
-      // Error response — return as-is
-      return new Response(JSON.stringify(body), response);
-    },
-  },
+  token: "https://www.strava.com/oauth/token",
   // Strava requires client_id/secret in the POST body, not Basic Auth header
   clientAuthMethod: "client_secret_post",
   userinfo: "https://www.strava.com/api/v3/athlete",
