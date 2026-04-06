@@ -171,7 +171,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
           <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
-          Filters
+          filters
           {hasActiveFilters && (
             <span className="bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 text-xs px-1.5 py-0.5 rounded-full">
               active
@@ -196,8 +196,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
         <div className="px-4 pb-4 space-y-4 border-t border-zinc-100 dark:border-zinc-800 pt-3">
           {/* Distance Radius */}
           <div>
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Search Radius: {displayMaxDistance.toFixed(0)} {distUnit}
+            <label className="text-xs font-medium text-zinc-500 tracking-wider">
+              search radius: {displayMaxDistance.toFixed(0)} {distUnit}
             </label>
             <input
               type="range"
@@ -216,8 +216,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
 
           {/* Pace Range */}
           <div>
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Pace: {decimalToMMSS(displayMinPace)} - {decimalToMMSS(displayMaxPace)} {paceUnit}
+            <label className="text-xs font-medium text-zinc-500 tracking-wider">
+              pace: {decimalToMMSS(displayMinPace)} - {decimalToMMSS(displayMaxPace)} {paceUnit}
             </label>
             <div className="flex gap-2 mt-1">
               <input
@@ -255,8 +255,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
 
           {/* Distance Range */}
           <div>
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Run Distance: {displayMinDist.toFixed(0)} - {displayMaxDist.toFixed(0)} {distUnit}
+            <label className="text-xs font-medium text-zinc-500 tracking-wider">
+              run distance: {displayMinDist.toFixed(0)} - {displayMaxDist.toFixed(0)} {distUnit}
             </label>
             <div className="flex gap-2 mt-1">
               <input
@@ -294,8 +294,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
 
           {/* Preferred Days */}
           <div>
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1 block">
-              Days (any if none selected)
+            <label className="text-xs font-medium text-zinc-500 tracking-wider mb-1 block">
+              days (any if none selected)
             </label>
             <div className="flex gap-1">
               {DAY_LABELS.map((label, i) => (
@@ -316,8 +316,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
 
           {/* Preferred Time Slots */}
           <div>
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1 block">
-              Time of Day (any if none selected)
+            <label className="text-xs font-medium text-zinc-500 tracking-wider mb-1 block">
+              time of day (any if none selected)
             </label>
             <div className="flex flex-wrap gap-1">
               {TIME_SLOTS.map((slot) => (
@@ -346,7 +346,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 className="rounded border-zinc-300 text-cyan-500 focus:ring-cyan-500"
               />
               <span className="text-sm font-medium">
-                Only show <span className="text-cyan-500">corillo</span> users
+                only show <span className="text-cyan-500">corillo</span> users
               </span>
             </label>
           </div>
@@ -355,7 +355,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
           <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
             <button
               onClick={() => setShowTraining(!showTraining)}
-              className="flex items-center gap-2 text-xs font-medium text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
+              className="flex items-center gap-2 text-xs font-medium text-zinc-500 tracking-wider hover:text-zinc-300 transition-colors"
             >
               <svg
                 className={`w-3.5 h-3.5 transition-transform ${showTraining ? "rotate-90" : ""}`}
@@ -363,7 +363,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-              Training Filters
+              training filters
               {hasTrainingFilters && (
                 <span className="bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 text-xs px-1.5 py-0.5 rounded-full normal-case tracking-normal">
                   active
@@ -376,7 +376,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 {/* Race Distance Filter */}
                 <div>
                   <label className="text-xs font-medium text-zinc-500 block mb-1">
-                    Training for race
+                    training for race
                   </label>
                   <select
                     value={draft.raceDistance || ""}
@@ -388,7 +388,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                     }
                     className="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:border-cyan-500 focus:outline-none"
                   >
-                    <option value="">Any / No preference</option>
+                    <option value="">any / no preference</option>
                     {RACE_DISTANCES.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
@@ -400,7 +400,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                   <div className="pl-4 border-l-2 border-cyan-500/30 space-y-3 animate-in fade-in duration-200">
                     <div>
                       <label className="text-xs font-medium text-zinc-500 block mb-1">
-                        Target time for {draft.raceDistance}
+                        target time for {draft.raceDistance}
                       </label>
                       <input
                         type="text"
@@ -413,7 +413,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                     {draft.raceTargetTime && (
                       <div>
                         <label className="text-xs font-medium text-zinc-500 block mb-1">
-                          Tolerance: ± {draft.raceTargetTimeTolerance} min
+                          tolerance: ± {draft.raceTargetTimeTolerance} min
                         </label>
                         <input
                           type="range"
@@ -436,7 +436,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 {/* Long Run Distance + Tolerance */}
                 <div>
                   <label className="text-xs font-medium text-zinc-500 block mb-1">
-                    Long run distance ({distUnit})
+                    long run distance ({distUnit})
                   </label>
                   <input
                     type="number"
@@ -461,7 +461,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 {draft.longRunDistance != null && (
                   <div className="pl-4 border-l-2 border-cyan-500/30 animate-in fade-in duration-200">
                     <label className="text-xs font-medium text-zinc-500 block mb-1">
-                      Tolerance: ± {kmToDisplay(draft.longRunDistanceTolerance).toFixed(1)} {distUnit}
+                      tolerance: ± {kmToDisplay(draft.longRunDistanceTolerance).toFixed(1)} {distUnit}
                     </label>
                     <input
                       type="range"
@@ -484,7 +484,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 {/* Long Run Pace + Tolerance */}
                 <div>
                   <label className="text-xs font-medium text-zinc-500 block mb-1">
-                    Long run pace ({paceUnit})
+                    long run pace ({paceUnit})
                   </label>
                   <input
                     type="text"
@@ -521,7 +521,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 {draft.longRunPace != null && (
                   <div className="pl-4 border-l-2 border-cyan-500/30 animate-in fade-in duration-200">
                     <label className="text-xs font-medium text-zinc-500 block mb-1">
-                      Tolerance: ± {decimalToMMSS(paceKmToDisplay(draft.longRunPaceTolerance))} {paceUnit}
+                      tolerance: ± {decimalToMMSS(paceKmToDisplay(draft.longRunPaceTolerance))} {paceUnit}
                     </label>
                     <input
                       type="range"
@@ -557,7 +557,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                     }
                     className="text-xs text-zinc-400 hover:text-zinc-200 underline transition-colors"
                   >
-                    Clear training filters
+                    clear training filters
                   </button>
                 )}
               </div>
@@ -571,13 +571,13 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 onClick={handleApply}
                 className="flex-1 py-2 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                Apply Filters
+                apply filters
               </button>
               <button
                 onClick={handleReset}
                 className="py-2 px-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg text-sm font-medium transition-colors"
               >
-                Reset
+                reset
               </button>
             </div>
           )}

@@ -41,16 +41,16 @@ interface EditProfileFormProps {
 const RACE_DISTANCES = ["5K", "10K", "Half Marathon", "Marathon", "Ultra"];
 
 const GENDER_OPTIONS = [
-  { value: "man", label: "Man" },
-  { value: "woman", label: "Woman" },
-  { value: "non_binary", label: "Non-Binary" },
-  { value: "prefer_not_to_say", label: "Prefer not to say" },
+  { value: "man", label: "man" },
+  { value: "woman", label: "woman" },
+  { value: "non_binary", label: "non-binary" },
+  { value: "prefer_not_to_say", label: "prefer not to say" },
 ] as const;
 
 const GENDER_MATCH_OPTIONS = [
-  { value: "man", label: "Men" },
-  { value: "woman", label: "Women" },
-  { value: "non_binary", label: "Non-Binary" },
+  { value: "man", label: "men" },
+  { value: "woman", label: "women" },
+  { value: "non_binary", label: "non-binary" },
 ] as const;
 
 function paceKmToMi(minPerKm: number): number {
@@ -306,7 +306,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
     <div className="space-y-6">
       {/* Units Toggle */}
       <div>
-        <label className="block text-sm font-medium mb-2">Display units</label>
+        <label className="block text-sm font-medium mb-2">display units</label>
         <div className="flex gap-3">
           <button
             type="button"
@@ -317,7 +317,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                 : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
             }`}
           >
-            Metric (km)
+            metric (km)
           </button>
           <button
             type="button"
@@ -328,14 +328,14 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                 : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
             }`}
           >
-            Imperial (mi)
+            imperial (mi)
           </button>
         </div>
       </div>
 
       {/* Gender */}
       <div>
-        <label className="block text-sm font-medium mb-2">Gender</label>
+        <label className="block text-sm font-medium mb-2">gender</label>
         <div className="grid grid-cols-2 gap-2">
           {GENDER_OPTIONS.map(({ value, label }) => (
             <button
@@ -359,12 +359,12 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
 
       {/* ─── Matching Preferences Section ─── */}
       <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-        <h4 className="text-base font-semibold mb-4">Matching Preferences</h4>
+        <h4 className="text-base font-semibold mb-4">matching preferences</h4>
 
         <div className="space-y-6">
           {/* Gender Match Preference - Multi-select checkboxes */}
           <div>
-            <label className="block text-sm font-medium mb-2">Match with</label>
+            <label className="block text-sm font-medium mb-2">match with</label>
             <div className="flex gap-3">
               {GENDER_MATCH_OPTIONS.map(({ value, label }) => {
                 const checked = genderMatchWith.includes(value);
@@ -417,7 +417,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
           {/* Sport Selection - Independent toggles */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Sports
+              sports
             </label>
             <div className="flex gap-3">
               <button
@@ -453,7 +453,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                       </svg>
                     )}
                   </span>
-                  Running
+                  running
                 </span>
               </button>
               <button
@@ -489,7 +489,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                       </svg>
                     )}
                   </span>
-                  Cycling
+                  cycling
                 </span>
               </button>
             </div>
@@ -498,12 +498,12 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
       {/* Running-specific fields */}
       {sportRunning && (
         <div className="space-y-4 pl-4 border-l-2 border-cyan-500/30 animate-in fade-in duration-200">
-          <h4 className="text-sm font-medium text-cyan-400">Running Details</h4>
+          <h4 className="text-sm font-medium text-cyan-400">running details</h4>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
-                Long run distance ({distUnit})
+                long run distance ({distUnit})
               </label>
               <input
                 type="text"
@@ -521,7 +521,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
 
             <div>
               <label className="block text-sm font-medium mb-1">
-                Long run pace ({paceUnit})
+                long run pace ({paceUnit})
               </label>
               <input
                 type="text"
@@ -540,14 +540,14 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
 
           <div>
             <label className="block text-sm font-medium mb-1">
-              Currently training for
+              currently training for
             </label>
             <select
               value={raceDistance}
               onChange={(e) => setRaceDistance(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white focus:border-cyan-500 focus:outline-none"
             >
-              <option value="">Not training for a race</option>
+              <option value="">not training for a race</option>
               {RACE_DISTANCES.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -559,7 +559,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
           {raceDistance && (
             <div className="animate-in fade-in duration-200">
               <label className="block text-sm font-medium mb-1">
-                Target time
+                target time
               </label>
               <input
                 type="text"
@@ -580,12 +580,12 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
       {sportCycling && (
         <div className="space-y-4 pl-4 border-l-2 border-cyan-500/30 animate-in fade-in duration-200">
           <h4 className="text-sm font-medium text-cyan-400">
-            Cycling Details
+            cycling details
           </h4>
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Cycling type
+              cycling type
             </label>
             <div className="flex gap-3">
               <button
@@ -621,7 +621,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                       </svg>
                     )}
                   </span>
-                  Road
+                  road
                 </span>
               </button>
               <button
@@ -657,7 +657,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                       </svg>
                     )}
                   </span>
-                  Mountain
+                  mountain
                 </span>
               </button>
             </div>
@@ -670,21 +670,21 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
 
       {/* ─── Notifications Section ─── */}
       <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-        <h4 className="text-base font-semibold mb-4">Notifications</h4>
+        <h4 className="text-base font-semibold mb-4">notifications</h4>
 
         <div className="space-y-6">
           {/* Run Notifications */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Planned run notifications
+              planned run notifications
             </label>
             <div className="grid grid-cols-2 gap-2">
               {(
                 [
-                  ["my_zones", "My Running Areas"],
-                  ["custom_areas", "Custom Areas"],
-                  ["all_nearby", "All Nearby"],
-                  ["none", "None"],
+                  ["my_zones", "my running areas"],
+                  ["custom_areas", "custom areas"],
+                  ["all_nearby", "all nearby"],
+                  ["none", "none"],
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -710,7 +710,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
           {runNotifications === "custom_areas" && (
             <div className="pl-4 border-l-2 border-cyan-500/30 space-y-4 animate-in fade-in duration-200">
               <label className="block text-sm font-medium">
-                Notification areas
+                notification areas
               </label>
               <p className="text-xs text-zinc-500">
                 Add areas by name or draw them on the map. You&apos;ll get notified about planned runs in these areas.
@@ -770,7 +770,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
               {/* Add named area */}
               <div>
                 <label className="text-xs font-medium text-zinc-500 block mb-1">
-                  Or add by name
+                  or add by name
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -787,7 +787,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                     disabled={addingArea || !newAreaLabel.trim()}
                     className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                   >
-                    {addingArea ? "..." : "Add"}
+                    {addingArea ? "..." : "add"}
                   </button>
                 </div>
               </div>
@@ -798,7 +798,7 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
           {runNotifications !== "none" && (
             <div className="space-y-2">
               <label className="block text-sm font-medium">
-                Departure time range
+                departure time range
               </label>
               <p className="text-xs text-zinc-500">
                 Only get notified about runs departing within this window. Leave empty for any time.
@@ -830,10 +830,10 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
           disabled={saving}
           className="px-6 py-2.5 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white font-medium transition-colors disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save Profile"}
+          {saving ? "saving..." : "save profile"}
         </button>
         {saved && (
-          <span className="text-sm text-emerald-400">Saved!</span>
+          <span className="text-sm text-emerald-400">saved!</span>
         )}
         {error && <span className="text-sm text-red-400">{error}</span>}
       </div>

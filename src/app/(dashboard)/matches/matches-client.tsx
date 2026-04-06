@@ -80,7 +80,7 @@ export function MatchesClient({ initialFilters, units = "metric" }: MatchesClien
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold mb-4">Your Matches</h1>
+      <h1 className="text-2xl font-bold mb-4">your matches</h1>
 
       <div className="mb-4">
         <FilterPanel initial={initialFilters} onChange={handleFilterChange} units={units} />

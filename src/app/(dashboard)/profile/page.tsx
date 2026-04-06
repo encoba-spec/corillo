@@ -72,7 +72,7 @@ export default async function ProfilePage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Your Profile</h1>
+        <h1 className="text-2xl font-bold">your profile</h1>
         <SyncButton />
       </div>
 
@@ -102,10 +102,10 @@ export default async function ProfilePage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <StatCard label="Avg Pace" value={paceDisplay} />
-          <StatCard label="Avg Distance" value={distDisplay} />
+          <StatCard label="avg pace" value={paceDisplay} />
+          <StatCard label="avg distance" value={distDisplay} />
           <StatCard
-            label="Weekly Runs"
+            label="weekly runs"
             value={
               user.weeklyFrequency
                 ? `${user.weeklyFrequency.toFixed(1)}x`
@@ -113,7 +113,7 @@ export default async function ProfilePage() {
             }
           />
           <StatCard
-            label="Activities"
+            label="activities"
             value={String(user._count.activities)}
           />
         </div>
@@ -121,7 +121,7 @@ export default async function ProfilePage() {
         {/* Running Areas */}
         {user.runningZones.length > 0 && (
           <div className="mb-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-            <h3 className="font-medium mb-3">Running Areas</h3>
+            <h3 className="font-medium mb-3">running areas</h3>
             <div className="flex flex-wrap gap-2">
               {user.runningZones.map((zone) => (
                 <div
@@ -138,7 +138,7 @@ export default async function ProfilePage() {
         {/* Clubs */}
         {user.clubMemberships.length > 0 && (
           <div className="mb-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-            <h3 className="font-medium mb-3">Clubs</h3>
+            <h3 className="font-medium mb-3">clubs</h3>
             <div className="flex flex-wrap gap-2">
               {user.clubMemberships.map((membership) => (
                 <div
@@ -155,7 +155,7 @@ export default async function ProfilePage() {
                   {membership.club.name}
                   {membership.role === "admin" && (
                     <span className="text-xs bg-purple-200 dark:bg-purple-800 px-1.5 py-0.5 rounded">
-                      Admin
+                      admin
                     </span>
                   )}
                 </div>
@@ -167,7 +167,7 @@ export default async function ProfilePage() {
         {/* Schedule Heatmap */}
         {user.schedulePatterns.length > 0 && (
           <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
-            <h3 className="font-medium mb-3">Running Schedule</h3>
+            <h3 className="font-medium mb-3">running schedule</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
@@ -216,7 +216,7 @@ export default async function ProfilePage() {
 
         {/* Training Profile & Matching */}
         <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-          <h3 className="font-medium mb-4">Profile Settings</h3>
+          <h3 className="font-medium mb-4">profile settings</h3>
           <EditProfileForm
             initialData={{
               sportRunning: user.sportRunning,
@@ -239,7 +239,7 @@ export default async function ProfilePage() {
 
         {/* Privacy */}
         <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-          <h3 className="font-medium mb-2">Privacy Settings</h3>
+          <h3 className="font-medium mb-2">privacy settings</h3>
           <div className="text-sm text-zinc-600 dark:text-zinc-400 space-y-1">
             <p>
               Discoverable:{" "}
@@ -285,7 +285,7 @@ export default async function ProfilePage() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3 text-center">
-      <p className="text-xs text-zinc-500 uppercase tracking-wider">{label}</p>
+      <p className="text-xs text-zinc-500 tracking-wider">{label}</p>
       <p className="text-lg font-semibold mt-1">{value}</p>
     </div>
   );

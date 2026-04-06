@@ -29,10 +29,10 @@ export default async function DashboardLayout({
               />
             </Link>
             <nav className="flex items-center gap-1">
-              <NavLink href="/discover">Discover</NavLink>
-              <NavLink href="/matches">Matches</NavLink>
-              <NavLink href="/planned-runs">Activities</NavLink>
-              <NavLink href="/messages">Messages</NavLink>
+              <NavLink href="/discover">discover</NavLink>
+              <NavLink href="/matches">matches</NavLink>
+              <NavLink href="/planned-runs">activities</NavLink>
+              <NavLink href="/messages">messages</NavLink>
             </nav>
           </div>
           <div className="flex items-center gap-3">

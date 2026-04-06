@@ -120,12 +120,12 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Planned Activities</h1>
+        <h1 className="text-2xl font-bold">planned activities</h1>
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
         >
-          {showCreate ? "Cancel" : "Create Activity"}
+          {showCreate ? "cancel" : "create activity"}
         </button>
       </div>
 
@@ -141,7 +141,7 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
       {/* Invitations */}
       {invitations.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-3">Activity Invitations</h2>
+          <h2 className="text-lg font-semibold mb-3">activity invitations</h2>
           <div className="space-y-3">
             {invitations.map((inv) => (
               <div
@@ -165,13 +165,13 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
                       onClick={() => handleInvitation(inv.id, "accepted")}
                       className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm transition-colors"
                     >
-                      Join
+                      join
                     </button>
                     <button
                       onClick={() => handleInvitation(inv.id, "declined")}
                       className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 rounded-lg text-sm transition-colors"
                     >
-                      Decline
+                      decline
                     </button>
                   </div>
                 </div>
@@ -185,10 +185,10 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
       <div className="flex gap-1 mb-6 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
         {(
           [
-            ["upcoming", "All Upcoming"],
-            ["mine", "My Activities"],
-            ["invited", "Invited"],
-            ["club", "My Clubs"],
+            ["upcoming", "all upcoming"],
+            ["mine", "my activities"],
+            ["invited", "invited"],
+            ["club", "my clubs"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -251,7 +251,7 @@ function ActivityTypeBadge({ type }: { type: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       )}
-      {isRide ? "Ride" : "Run"}
+      {isRide ? "ride" : "run"}
     </span>
   );
 }
@@ -383,7 +383,7 @@ function ActivityCard({
             onClick={onLeave}
             className="px-4 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-lg transition-colors"
           >
-            Leave
+            leave
           </button>
         ) : (
           <button
@@ -391,7 +391,7 @@ function ActivityCard({
             disabled={isFull}
             className="px-4 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors disabled:opacity-50"
           >
-            {isFull ? "Full" : "Join"}
+            {isFull ? "full" : "join"}
           </button>
         )}
       </div>
@@ -556,11 +556,11 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
       onSubmit={handleSubmit}
       className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 mb-6"
     >
-      <h2 className="text-lg font-semibold mb-4">Create an Activity</h2>
+      <h2 className="text-lg font-semibold mb-4">create an activity</h2>
 
       {/* Activity Type Toggle */}
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-2">Activity Type</label>
+        <label className="block text-sm font-medium mb-2">activity type</label>
         <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-fit">
           <button
             type="button"
@@ -574,7 +574,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            Run
+            run
           </button>
           <button
             type="button"
@@ -591,14 +591,14 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6l-4 8h5l3-5" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.5 17.5L9 9l3 5" />
             </svg>
-            Ride
+            ride
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium mb-1">Title</label>
+          <label className="block text-sm font-medium mb-1">title</label>
           <input
             type="text"
             value={title}
@@ -611,7 +611,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
 
         <div className="md:col-span-2">
           <label className="block text-sm font-medium mb-1">
-            Description (optional)
+            description (optional)
           </label>
           <textarea
             value={description}
@@ -623,7 +623,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Date</label>
+          <label className="block text-sm font-medium mb-1">date</label>
           <input
             type="date"
             value={date}
@@ -635,7 +635,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
 
         <div>
           <label className="block text-sm font-medium mb-1">
-            Departure Time
+            departure time
           </label>
           <input
             type="time"
@@ -650,7 +650,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
         {!isRide && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              Pace (min/km)
+              pace (min/km)
             </label>
             <input
               type="text"
@@ -668,7 +668,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
         {isRide && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              Estimated Speed (km/h)
+              estimated speed (km/h)
             </label>
             <input
               type="number"
@@ -685,7 +685,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
 
         <div>
           <label className="block text-sm font-medium mb-1">
-            Distance (km)
+            distance (km)
           </label>
           <input
             type="number"
@@ -702,24 +702,24 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
         {isRide && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              Terrain Type
+              terrain type
             </label>
             <select
               value={terrainType}
               onChange={(e) => setTerrainType(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
             >
-              <option value="">Any / Not specified</option>
-              <option value="road">Road</option>
-              <option value="mountain">Mountain</option>
-              <option value="gravel">Gravel</option>
+              <option value="">any / not specified</option>
+              <option value="road">road</option>
+              <option value="mountain">mountain</option>
+              <option value="gravel">gravel</option>
             </select>
           </div>
         )}
 
         <div>
           <label className="block text-sm font-medium mb-1">
-            Max Participants
+            max participants
           </label>
           <input
             type="number"
@@ -733,7 +733,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
 
         <div>
           <label className="block text-sm font-medium mb-1">
-            Location Name
+            location name
           </label>
           <input
             type="text"
@@ -746,31 +746,31 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
 
         <div>
           <label className="block text-sm font-medium mb-1">
-            Gender Restriction
+            gender restriction
           </label>
           <select
             value={genderRestriction}
             onChange={(e) => setGenderRestriction(e.target.value)}
             className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
           >
-            <option value="">Open to all</option>
-            <option value="woman">Women only</option>
-            <option value="man">Men only</option>
-            <option value="non_binary">Non-Binary only</option>
+            <option value="">open to all</option>
+            <option value="woman">women only</option>
+            <option value="man">men only</option>
+            <option value="non_binary">non-binary only</option>
           </select>
         </div>
 
         {clubs.length > 0 && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              Club
+              club
             </label>
             <select
               value={clubId}
               onChange={(e) => setClubId(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
             >
-              <option value="">No club</option>
+              <option value="">no club</option>
               {clubs.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -785,7 +785,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
                   onChange={(e) => setClubOnly(e.target.checked)}
                   className="rounded border-zinc-300 text-cyan-500 focus:ring-cyan-500"
                 />
-                Club members only
+                club members only
               </label>
             )}
           </div>
@@ -793,7 +793,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
 
         <div className="md:col-span-2">
           <label className="block text-sm font-medium mb-2">
-            Meeting Point
+            meeting point
           </label>
 
           {/* Address search + Use My Location */}
@@ -817,7 +817,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
               disabled={searching || !addressSearch.trim()}
               className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
             >
-              {searching ? "..." : "Search"}
+              {searching ? "..." : "search"}
             </button>
             <button
               type="button"
@@ -866,7 +866,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
           disabled={saving}
           className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
         >
-          {saving ? "Creating..." : `Create ${isRide ? "Ride" : "Run"}`}
+          {saving ? "creating..." : `create ${isRide ? "ride" : "run"}`}
         </button>
       </div>
     </form>

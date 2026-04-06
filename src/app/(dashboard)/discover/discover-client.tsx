@@ -108,7 +108,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Discover Runners</h1>
+        <h1 className="text-2xl font-bold">discover runners</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setView("map")}
@@ -118,7 +118,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
                 : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
             }`}
           >
-            Map
+            map
           </button>
           <button
             onClick={() => setView("list")}
@@ -128,7 +128,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
                 : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
             }`}
           >
-            List
+            list
           </button>
         </div>
       </div>
@@ -173,7 +173,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
         {/* Runner List Sidebar (visible in map view) */}
         {view === "map" && (
           <div className="space-y-3 max-h-[500px] overflow-y-auto">
-            <h2 className="text-sm font-medium text-zinc-500 uppercase tracking-wider sticky top-0 bg-zinc-50 dark:bg-zinc-950 py-1">
+            <h2 className="text-sm font-medium text-zinc-500 tracking-wider sticky top-0 bg-zinc-50 dark:bg-zinc-950 py-1">
               {matchesLoading
                 ? "Loading..."
                 : `${matches.length} runners nearby`}

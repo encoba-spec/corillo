@@ -98,7 +98,7 @@ export function RunnerCard({
         <div className="flex-1 min-w-0">
           {/* Name + Badge */}
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold truncate">{name || "Runner"}</h3>
+            <h3 className="font-semibold truncate">{name || "runner"}</h3>
             <CompatibilityBadge score={score} />
             {onApp && (
               <span
@@ -189,7 +189,7 @@ export function RunnerCard({
               }}
               className="mt-3 px-3 py-1.5 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:text-cyan-500 rounded-lg transition-colors"
             >
-              Message
+              message
             </button>
           )}
           {!onApp && (

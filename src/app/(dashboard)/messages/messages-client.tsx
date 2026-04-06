@@ -101,7 +101,7 @@ export function MessagesClient({ userId, initialThreadId }: { userId: string; in
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Messages</h1>
+      <h1 className="text-2xl font-bold mb-6">messages</h1>
 
       <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
         <div className="flex h-[600px]">
@@ -248,7 +248,7 @@ export function MessagesClient({ userId, initialThreadId }: { userId: string; in
                       disabled={sending || !newMessage.trim()}
                       className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full text-sm font-medium transition-colors disabled:opacity-50"
                     >
-                      Send
+                      send
                     </button>
                   </div>
                 </form>

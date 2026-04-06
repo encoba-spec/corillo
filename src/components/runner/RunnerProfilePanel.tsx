@@ -168,7 +168,7 @@ export function RunnerProfilePanel({
               )}
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold">{profile.name || "Runner"}</h2>
+                  <h2 className="text-xl font-bold">{profile.name || "runner"}</h2>
                   {profile.stravaAthleteId && (
                     <span
                       className="flex-shrink-0 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center"
@@ -206,7 +206,7 @@ export function RunnerProfilePanel({
                   onClick={() => onMessage(profile.id)}
                   className="flex-1 py-2.5 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                  Message
+                  message
                 </button>
               ) : (
                 <div className="flex-1 py-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-400 rounded-lg text-sm font-medium text-center">
@@ -234,24 +234,24 @@ export function RunnerProfilePanel({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               {profile.averagePace != null && (
                 <StatCard
-                  label="Avg Pace"
+                  label="avg pace"
                   value={`${formatPace(profile.averagePace)} ${paceUnit}`}
                 />
               )}
               {profile.averageDistance != null && (
                 <StatCard
-                  label="Avg Distance"
+                  label="avg distance"
                   value={formatDistance(profile.averageDistance)}
                 />
               )}
               {profile.weeklyFrequency != null && (
                 <StatCard
-                  label="Weekly Runs"
+                  label="weekly runs"
                   value={`${profile.weeklyFrequency.toFixed(1)}x`}
                 />
               )}
               <StatCard
-                label="Activities"
+                label="activities"
                 value={String(profile.activityCount)}
               />
             </div>
@@ -259,16 +259,16 @@ export function RunnerProfilePanel({
             {/* Training Profile */}
             {(profile.sportRunning || profile.sportCycling) && (
               <div className="mb-6 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold mb-3 text-zinc-500 uppercase tracking-wider">
-                  Training
+                <h3 className="text-sm font-semibold mb-3 text-zinc-500 tracking-wider">
+                  training
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-zinc-500">Sports</span>
+                    <span className="text-zinc-500">sports</span>
                     <span className="font-medium">
                       {[
-                        profile.sportRunning && "Running",
-                        profile.sportCycling && "Cycling",
+                        profile.sportRunning && "running",
+                        profile.sportCycling && "cycling",
                       ]
                         .filter(Boolean)
                         .join(", ")}
@@ -276,7 +276,7 @@ export function RunnerProfilePanel({
                   </div>
                   {profile.longRunPace != null && (
                     <div className="flex justify-between">
-                      <span className="text-zinc-500">Long Run Pace</span>
+                      <span className="text-zinc-500">long run pace</span>
                       <span className="font-medium">
                         {formatPace(profile.longRunPace)} {paceUnit}
                       </span>
@@ -284,7 +284,7 @@ export function RunnerProfilePanel({
                   )}
                   {profile.longRunDistance != null && (
                     <div className="flex justify-between">
-                      <span className="text-zinc-500">Long Run Distance</span>
+                      <span className="text-zinc-500">long run distance</span>
                       <span className="font-medium">
                         {formatDistance(profile.longRunDistance)}
                       </span>
@@ -292,7 +292,7 @@ export function RunnerProfilePanel({
                   )}
                   {profile.raceDistance && (
                     <div className="flex justify-between">
-                      <span className="text-zinc-500">Training For</span>
+                      <span className="text-zinc-500">training for</span>
                       <span className="font-medium">
                         {profile.raceDistance}
                         {profile.raceTargetTime && ` (${profile.raceTargetTime})`}
@@ -301,11 +301,11 @@ export function RunnerProfilePanel({
                   )}
                   {(profile.cyclingRoad || profile.cyclingMountain) && (
                     <div className="flex justify-between">
-                      <span className="text-zinc-500">Cycling</span>
+                      <span className="text-zinc-500">cycling</span>
                       <span className="font-medium">
                         {[
-                          profile.cyclingRoad && "Road",
-                          profile.cyclingMountain && "Mountain",
+                          profile.cyclingRoad && "road",
+                          profile.cyclingMountain && "mountain",
                         ]
                           .filter(Boolean)
                           .join(", ")}
@@ -319,8 +319,8 @@ export function RunnerProfilePanel({
             {/* Running Areas */}
             {profile.runningZones && profile.runningZones.length > 0 && (
               <div className="mb-6 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold mb-3 text-zinc-500 uppercase tracking-wider">
-                  Running Areas
+                <h3 className="text-sm font-semibold mb-3 text-zinc-500 tracking-wider">
+                  running areas
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {profile.runningZones.map((zone) => (
@@ -338,8 +338,8 @@ export function RunnerProfilePanel({
             {/* Schedule */}
             {profile.schedulePatterns && profile.schedulePatterns.length > 0 && (
               <div className="mb-6 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold mb-3 text-zinc-500 uppercase tracking-wider">
-                  Running Schedule
+                <h3 className="text-sm font-semibold mb-3 text-zinc-500 tracking-wider">
+                  running schedule
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -394,8 +394,8 @@ export function RunnerProfilePanel({
             {/* Clubs */}
             {profile.clubs && profile.clubs.length > 0 && (
               <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold mb-3 text-zinc-500 uppercase tracking-wider">
-                  Clubs
+                <h3 className="text-sm font-semibold mb-3 text-zinc-500 tracking-wider">
+                  clubs
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {profile.clubs.map((club) => (
@@ -426,7 +426,7 @@ export function RunnerProfilePanel({
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3 text-center">
-      <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
+      <p className="text-[10px] text-zinc-500 tracking-wider">
         {label}
       </p>
       <p className="text-sm font-semibold mt-0.5">{value}</p>
