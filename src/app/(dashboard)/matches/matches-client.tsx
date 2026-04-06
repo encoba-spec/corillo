@@ -1,18 +1,39 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { RunnerCard } from "@/components/runner/RunnerCard";
+import { RunnerProfilePanel } from "@/components/runner/RunnerProfilePanel";
 import { FilterPanel, type FilterValues } from "@/components/runner/FilterPanel";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface MatchesClientProps {
   initialFilters: FilterValues;
+  units?: string;
 }
 
-export function MatchesClient({ initialFilters }: MatchesClientProps) {
+export function MatchesClient({ initialFilters, units = "metric" }: MatchesClientProps) {
+  const router = useRouter();
   const [filters, setFilters] = useState<FilterValues>(initialFilters);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+
+  async function handleMessage(recipientId: string) {
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId, content: "Hey! Want to run together?" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/messages?thread=${data.threadId}`);
+      }
+    } catch (err) {
+      console.error("Failed to start conversation:", err);
+    }
+  }
 
   const params = new URLSearchParams();
   params.set("maxDistanceKm", String(filters.maxDistanceKm));
@@ -25,6 +46,21 @@ export function MatchesClient({ initialFilters }: MatchesClientProps) {
   }
   if (filters.preferredTimeSlots.length > 0) {
     params.set("preferredTimeSlots", filters.preferredTimeSlots.join(","));
+  }
+  if (filters.raceDistance) {
+    params.set("raceDistance", filters.raceDistance);
+  }
+  if (filters.raceTargetTime) {
+    params.set("raceTargetTime", filters.raceTargetTime);
+    params.set("raceTargetTimeTolerance", String(filters.raceTargetTimeTolerance));
+  }
+  if (filters.longRunDistance != null) {
+    params.set("longRunDistance", String(filters.longRunDistance));
+    params.set("longRunDistanceTolerance", String(filters.longRunDistanceTolerance));
+  }
+  if (filters.longRunPace != null) {
+    params.set("longRunPace", String(filters.longRunPace));
+    params.set("longRunPaceTolerance", String(filters.longRunPaceTolerance));
   }
 
   const { data, isLoading } = useSWR(
@@ -44,7 +80,7 @@ export function MatchesClient({ initialFilters }: MatchesClientProps) {
       <h1 className="text-2xl font-bold mb-4">Your Matches</h1>
 
       <div className="mb-4">
-        <FilterPanel initial={initialFilters} onChange={handleFilterChange} />
+        <FilterPanel initial={initialFilters} onChange={handleFilterChange} units={units} />
       </div>
 
       <div className="space-y-3">
@@ -82,12 +118,22 @@ export function MatchesClient({ initialFilters }: MatchesClientProps) {
                 <div className="absolute -left-8 top-4 text-sm font-bold text-zinc-300 dark:text-zinc-700">
                   #{i + 1}
                 </div>
-                <RunnerCard {...m} />
+                <RunnerCard {...m} onSelect={setProfileUserId} onMessage={handleMessage} />
               </div>
             ))}
           </>
         )}
       </div>
+
+      {/* Runner Profile Panel */}
+      <RunnerProfilePanel
+        userId={profileUserId}
+        onClose={() => setProfileUserId(null)}
+        onMessage={(userId) => {
+          setProfileUserId(null);
+          handleMessage(userId);
+        }}
+      />
     </div>
   );
 }

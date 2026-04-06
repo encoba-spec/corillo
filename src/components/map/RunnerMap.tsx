@@ -83,7 +83,7 @@ export function RunnerMap({
         fillOpacity: 0.8,
         weight: 2,
       })
-        .bindTooltip("Your zone", { direction: "top" })
+        .bindTooltip("Your area", { direction: "top" })
         .addTo(map);
     }
 

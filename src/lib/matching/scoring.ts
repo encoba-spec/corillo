@@ -20,6 +20,14 @@ export interface ScoringOptions {
   maxDistance: number;
   preferredDays?: number[];
   preferredTimeSlots?: string[];
+  // Training-specific filters
+  raceDistance?: string | null;
+  raceTargetTime?: string | null;
+  raceTargetTimeTolerance?: number; // ± minutes
+  longRunDistance?: number | null; // km
+  longRunDistanceTolerance?: number; // ± km
+  longRunPace?: number | null; // min/km
+  longRunPaceTolerance?: number; // ± min/km
 }
 
 /**

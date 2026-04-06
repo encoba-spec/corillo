@@ -24,6 +24,11 @@ export default async function ProfilePage() {
       },
       schedulePatterns: true,
       runningZones: true,
+      clubMemberships: {
+        include: {
+          club: true,
+        },
+      },
     },
   });
 
@@ -41,6 +46,22 @@ export default async function ProfilePage() {
     const dayLabel = DAY_LABELS[pattern.dayOfWeek];
     heatmap[dayLabel][pattern.timeSlot] = pattern.frequency;
   }
+
+  const isImperial = user.units === "imperial";
+  const KM_TO_MI = 0.621371;
+  const MI_TO_KM = 1.60934;
+
+  const paceDisplay = user.averagePace
+    ? isImperial
+      ? `${(user.averagePace * MI_TO_KM).toFixed(1)} min/mi`
+      : `${user.averagePace.toFixed(1)} min/km`
+    : "--";
+
+  const distDisplay = user.averageDistance
+    ? isImperial
+      ? `${(user.averageDistance * KM_TO_MI).toFixed(1)} mi`
+      : `${user.averageDistance.toFixed(1)} km`
+    : "--";
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -75,22 +96,8 @@ export default async function ProfilePage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <StatCard
-            label="Avg Pace"
-            value={
-              user.averagePace
-                ? `${user.averagePace.toFixed(1)} min/km`
-                : "--"
-            }
-          />
-          <StatCard
-            label="Avg Distance"
-            value={
-              user.averageDistance
-                ? `${user.averageDistance.toFixed(1)} km`
-                : "--"
-            }
-          />
+          <StatCard label="Avg Pace" value={paceDisplay} />
+          <StatCard label="Avg Distance" value={distDisplay} />
           <StatCard
             label="Weekly Runs"
             value={
@@ -105,17 +112,46 @@ export default async function ProfilePage() {
           />
         </div>
 
-        {/* Running Zones */}
+        {/* Running Areas */}
         {user.runningZones.length > 0 && (
           <div className="mb-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-            <h3 className="font-medium mb-3">Running Zones</h3>
+            <h3 className="font-medium mb-3">Running Areas</h3>
             <div className="flex flex-wrap gap-2">
               {user.runningZones.map((zone) => (
                 <div
                   key={zone.id}
                   className="bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 px-3 py-1.5 rounded-lg text-sm"
                 >
-                  {zone.label || `Zone`} ({zone.activityCount} runs)
+                  {zone.label || `Area`} ({zone.activityCount} runs)
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Clubs */}
+        {user.clubMemberships.length > 0 && (
+          <div className="mb-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+            <h3 className="font-medium mb-3">Clubs</h3>
+            <div className="flex flex-wrap gap-2">
+              {user.clubMemberships.map((membership) => (
+                <div
+                  key={membership.id}
+                  className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-3 py-1.5 rounded-lg text-sm"
+                >
+                  {membership.club.profileImage && (
+                    <img
+                      src={membership.club.profileImage}
+                      alt=""
+                      className="w-5 h-5 rounded-full"
+                    />
+                  )}
+                  {membership.club.name}
+                  {membership.role === "admin" && (
+                    <span className="text-xs bg-purple-200 dark:bg-purple-800 px-1.5 py-0.5 rounded">
+                      Admin
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -131,26 +167,26 @@ export default async function ProfilePage() {
                 <thead>
                   <tr>
                     <th className="text-left py-1 pr-2"></th>
-                    {TIME_SLOTS.map((slot) => (
+                    {DAY_LABELS.map((day) => (
                       <th
-                        key={slot}
+                        key={day}
                         className="text-center py-1 px-1 font-normal text-zinc-500"
                       >
-                        {TIME_SLOT_LABELS[slot].split(" ")[0]}
+                        {day}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {DAY_LABELS.map((day) => (
-                    <tr key={day}>
-                      <td className="py-1 pr-2 font-medium text-zinc-600 dark:text-zinc-400">
-                        {day}
+                  {TIME_SLOTS.map((slot) => (
+                    <tr key={slot}>
+                      <td className="py-1 pr-2 font-medium text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                        {TIME_SLOT_LABELS[slot].split(" ")[0]}
                       </td>
-                      {TIME_SLOTS.map((slot) => {
+                      {DAY_LABELS.map((day) => {
                         const freq = heatmap[day][slot];
                         return (
-                          <td key={slot} className="py-1 px-1 text-center">
+                          <td key={day} className="py-1 px-1 text-center">
                             <div
                               className="w-8 h-6 rounded mx-auto"
                               style={{
@@ -172,16 +208,25 @@ export default async function ProfilePage() {
           </div>
         )}
 
-        {/* Training Profile */}
+        {/* Training Profile & Matching */}
         <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-          <h3 className="font-medium mb-4">Training Profile</h3>
+          <h3 className="font-medium mb-4">Profile Settings</h3>
           <EditProfileForm
             initialData={{
-              sport: user.sport,
+              sportRunning: user.sportRunning,
+              sportCycling: user.sportCycling,
               longRunPace: user.longRunPace,
+              longRunDistance: user.longRunDistance,
               raceDistance: user.raceDistance,
               raceTargetTime: user.raceTargetTime,
-              cyclingType: user.cyclingType,
+              cyclingRoad: user.cyclingRoad,
+              cyclingMountain: user.cyclingMountain,
+              units: user.units,
+              gender: user.gender,
+              genderMatchWith: user.genderMatchWith,
+              runNotifications: user.runNotifications,
+              notifyTimeStart: user.notifyTimeStart,
+              notifyTimeEnd: user.notifyTimeEnd,
             }}
           />
         </div>
@@ -212,6 +257,16 @@ export default async function ProfilePage() {
               Share pace:{" "}
               <span className="font-medium text-zinc-900 dark:text-zinc-100">
                 {user.sharePace ? "Yes" : "No"}
+              </span>
+            </p>
+            <p>
+              Run notifications:{" "}
+              <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                {user.runNotifications === "my_zones"
+                  ? "My running areas"
+                  : user.runNotifications === "all_nearby"
+                  ? "All nearby"
+                  : "None"}
               </span>
             </p>
           </div>

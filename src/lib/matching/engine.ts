@@ -35,6 +35,16 @@ export interface MatchResult {
   zoneLng: number;
 }
 
+/** Parse a time string like "1:45:00" or "25:30" to total minutes */
+function parseTimeToMinutes(t: string): number | null {
+  if (!t) return null;
+  const parts = t.split(":").map(Number);
+  if (parts.some(isNaN)) return null;
+  if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
+  if (parts.length === 2) return parts[0] + parts[1] / 60;
+  return null;
+}
+
 /**
  * Find and score matches for a user, applying their search preferences.
  */
@@ -56,6 +66,14 @@ export async function findMatches(
     preferredDays: overrides?.preferredDays ?? prefs?.preferredDays ?? [],
     preferredTimeSlots:
       overrides?.preferredTimeSlots ?? prefs?.preferredTimeSlots ?? [],
+    // Training filters
+    raceDistance: overrides?.raceDistance ?? null,
+    raceTargetTime: overrides?.raceTargetTime ?? null,
+    raceTargetTimeTolerance: overrides?.raceTargetTimeTolerance ?? 15,
+    longRunDistance: overrides?.longRunDistance ?? null,
+    longRunDistanceTolerance: overrides?.longRunDistanceTolerance ?? 5,
+    longRunPace: overrides?.longRunPace ?? null,
+    longRunPaceTolerance: overrides?.longRunPaceTolerance ?? 1,
   };
 
   // 1. Spatial pre-filter: find nearby discoverable runners
@@ -74,6 +92,8 @@ export async function findMatches(
     select: {
       averagePace: true,
       averageDistance: true,
+      gender: true,
+      genderMatchWith: true,
       schedulePatterns: {
         select: { dayOfWeek: true, timeSlot: true, frequency: true },
       },
@@ -82,14 +102,106 @@ export async function findMatches(
 
   if (!currentUser) return [];
 
+  // Filter by gender match preferences (array of genders user wants to match with)
+  let filteredNearby = nearby;
+  const matchWith = currentUser.genderMatchWith;
+  if (matchWith && matchWith.length > 0 && matchWith.length < 3) {
+    // Not all genders selected, so filter
+    const candidateIds = filteredNearby.map((r) => r.userId);
+    const usersWithGender = await prisma.user.findMany({
+      where: {
+        id: { in: candidateIds },
+        OR: [
+          { gender: { in: matchWith } },
+          { gender: null }, // include users who haven't set gender
+        ],
+      },
+      select: { id: true },
+    });
+    const genderMatchIds = new Set(usersWithGender.map((u) => u.id));
+    filteredNearby = filteredNearby.filter((r) => genderMatchIds.has(r.userId));
+  }
+
+  if (filteredNearby.length === 0) return [];
+
+  // 3. Apply training-specific filters if set
+  const needsTrainingFilter =
+    options.raceDistance ||
+    options.longRunDistance != null ||
+    options.longRunPace != null;
+
+  if (needsTrainingFilter) {
+    const candidateIds = filteredNearby.map((r) => r.userId);
+
+    // Build a WHERE clause for training filters
+    const whereConditions: any = { id: { in: candidateIds } };
+
+    // Race distance filter
+    if (options.raceDistance) {
+      whereConditions.raceDistance = options.raceDistance;
+    }
+
+    // Fetch candidates that match race distance (if set) to check target time
+    const trainingUsers = await prisma.user.findMany({
+      where: whereConditions,
+      select: {
+        id: true,
+        raceDistance: true,
+        raceTargetTime: true,
+        longRunDistance: true,
+        longRunPace: true,
+      },
+    });
+
+    const passIds = new Set<string>();
+
+    for (const u of trainingUsers) {
+      // Check race target time tolerance
+      if (options.raceTargetTime && options.raceDistance) {
+        const filterMinutes = parseTimeToMinutes(options.raceTargetTime);
+        const userMinutes = u.raceTargetTime
+          ? parseTimeToMinutes(u.raceTargetTime)
+          : null;
+        if (filterMinutes != null && userMinutes != null) {
+          const tolerance = options.raceTargetTimeTolerance ?? 15;
+          if (Math.abs(filterMinutes - userMinutes) > tolerance) continue;
+        } else if (filterMinutes != null && userMinutes == null) {
+          // User has no target time set - skip if we're filtering by it
+          continue;
+        }
+      }
+
+      // Check long run distance tolerance
+      if (options.longRunDistance != null) {
+        if (u.longRunDistance == null) continue;
+        const tolerance = options.longRunDistanceTolerance ?? 5;
+        if (Math.abs(options.longRunDistance - u.longRunDistance) > tolerance)
+          continue;
+      }
+
+      // Check long run pace tolerance
+      if (options.longRunPace != null) {
+        if (u.longRunPace == null) continue;
+        const tolerance = options.longRunPaceTolerance ?? 1;
+        if (Math.abs(options.longRunPace - u.longRunPace) > tolerance) continue;
+      }
+
+      passIds.add(u.id);
+    }
+
+    filteredNearby = filteredNearby.filter((r) => passIds.has(r.userId));
+  }
+
+  if (filteredNearby.length === 0) return [];
+
   const currentProfile: RunnerProfile = {
     averagePace: currentUser.averagePace,
     averageDistance: currentUser.averageDistance,
     schedulePatterns: currentUser.schedulePatterns,
   };
 
-  // 3. Get schedule patterns for all candidate users
-  const candidateIds = nearby.map((r) => r.userId);
+  // 4. Get schedule patterns for all candidate users
+  const candidateIds = filteredNearby.map((r) => r.userId);
   const allPatterns = await prisma.schedulePattern.findMany({
     where: { userId: { in: candidateIds } },
     select: { userId: true, dayOfWeek: true, timeSlot: true, frequency: true },
@@ -104,8 +216,8 @@ export async function findMatches(
     patternsByUser.get(p.userId)!.push(p);
   }
 
-  // 4. Score each candidate
-  const results: MatchResult[] = nearby.map((runner) => {
+  // 5. Score each candidate
+  const results: MatchResult[] = filteredNearby.map((runner) => {
     const otherProfile: RunnerProfile = {
       averagePace: runner.averagePace,
       averageDistance: runner.averageDistance,
@@ -160,10 +272,10 @@ export async function findMatches(
     };
   });
 
-  // 5. Sort by score descending
+  // 6. Sort by score descending
   results.sort((a, b) => b.score - a.score);
 
-  // 6. Filter by schedule preferences if set
+  // 7. Filter by schedule preferences if set
   if (options.preferredDays?.length || options.preferredTimeSlots?.length) {
     return results.filter((r) => r.scheduleScore > 0);
   }

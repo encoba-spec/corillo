@@ -37,6 +37,22 @@ export async function GET(request: NextRequest) {
       .get("preferredTimeSlots")!
       .split(",");
 
+  // Training-specific filters
+  if (params.has("raceDistance"))
+    overrides.raceDistance = params.get("raceDistance")!;
+  if (params.has("raceTargetTime"))
+    overrides.raceTargetTime = params.get("raceTargetTime")!;
+  if (params.has("raceTargetTimeTolerance"))
+    overrides.raceTargetTimeTolerance = parseFloat(params.get("raceTargetTimeTolerance")!);
+  if (params.has("longRunDistance"))
+    overrides.longRunDistance = parseFloat(params.get("longRunDistance")!);
+  if (params.has("longRunDistanceTolerance"))
+    overrides.longRunDistanceTolerance = parseFloat(params.get("longRunDistanceTolerance")!);
+  if (params.has("longRunPace"))
+    overrides.longRunPace = parseFloat(params.get("longRunPace")!);
+  if (params.has("longRunPaceTolerance"))
+    overrides.longRunPaceTolerance = parseFloat(params.get("longRunPaceTolerance")!);
+
   try {
     const matches = await findMatches(session.user.id, overrides);
     return NextResponse.json(matches);

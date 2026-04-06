@@ -188,6 +188,7 @@ export const authConfig: NextAuthConfig = {
               city: stravaProfile.city,
               state: stravaProfile.state,
               country: stravaProfile.country,
+              gender: stravaProfile.sex === "M" ? "man" : stravaProfile.sex === "F" ? "woman" : null,
             },
           });
         } catch (err) {

@@ -20,6 +20,7 @@ interface RunnerCardProps {
   paceScore: number;
   distanceScore: number;
   onSelect?: (userId: string) => void;
+  onMessage?: (userId: string) => void;
 }
 
 export function RunnerCard({
@@ -38,6 +39,7 @@ export function RunnerCard({
   paceScore,
   distanceScore,
   onSelect,
+  onMessage,
   userId,
 }: RunnerCardProps) {
   return (
@@ -113,6 +115,19 @@ export function RunnerCard({
             <ScoreBar label="Pace" value={paceScore} color="bg-cyan-400" />
             <ScoreBar label="Dist" value={distanceScore} color="bg-purple-400" />
           </div>
+
+          {/* Message button */}
+          {onMessage && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMessage(userId);
+              }}
+              className="mt-3 px-3 py-1.5 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:text-cyan-500 rounded-lg transition-colors"
+            >
+              Message
+            </button>
+          )}
         </div>
       </div>
     </div>

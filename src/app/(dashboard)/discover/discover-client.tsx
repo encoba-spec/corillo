@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { RunnerCard } from "@/components/runner/RunnerCard";
+import { RunnerProfilePanel } from "@/components/runner/RunnerProfilePanel";
 import { FilterPanel, type FilterValues } from "@/components/runner/FilterPanel";
 
 // Leaflet must be loaded client-side only (uses window)
@@ -16,12 +18,36 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface DiscoverClientProps {
   initialFilters: FilterValues;
+  units?: string;
 }
 
-export function DiscoverClient({ initialFilters }: DiscoverClientProps) {
+export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverClientProps) {
+  const router = useRouter();
   const [filters, setFilters] = useState<FilterValues>(initialFilters);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [view, setView] = useState<"map" | "list">("map");
+
+  function handleSelectRunner(userId: string) {
+    setSelectedUserId(userId);
+    setProfileUserId(userId);
+  }
+
+  async function handleMessage(recipientId: string) {
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId, content: "Hey! Want to run together?" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/messages?thread=${data.threadId}`);
+      }
+    } catch (err) {
+      console.error("Failed to start conversation:", err);
+    }
+  }
 
   // Build query string from filters
   const queryParams = new URLSearchParams();
@@ -39,6 +65,21 @@ export function DiscoverClient({ initialFilters }: DiscoverClientProps) {
   }
   if (filters.preferredTimeSlots.length > 0) {
     matchParams.set("preferredTimeSlots", filters.preferredTimeSlots.join(","));
+  }
+  if (filters.raceDistance) {
+    matchParams.set("raceDistance", filters.raceDistance);
+  }
+  if (filters.raceTargetTime) {
+    matchParams.set("raceTargetTime", filters.raceTargetTime);
+    matchParams.set("raceTargetTimeTolerance", String(filters.raceTargetTimeTolerance));
+  }
+  if (filters.longRunDistance != null) {
+    matchParams.set("longRunDistance", String(filters.longRunDistance));
+    matchParams.set("longRunDistanceTolerance", String(filters.longRunDistanceTolerance));
+  }
+  if (filters.longRunPace != null) {
+    matchParams.set("longRunPace", String(filters.longRunPace));
+    matchParams.set("longRunPaceTolerance", String(filters.longRunPaceTolerance));
   }
 
   const { data: matchData, isLoading: matchesLoading } = useSWR(
@@ -91,7 +132,7 @@ export function DiscoverClient({ initialFilters }: DiscoverClientProps) {
 
       {/* Filter Panel */}
       <div className="mb-4">
-        <FilterPanel initial={initialFilters} onChange={handleFilterChange} />
+        <FilterPanel initial={initialFilters} onChange={handleFilterChange} units={units} />
       </div>
 
       <div className="grid lg:grid-cols-[1fr_380px] gap-4">
@@ -102,7 +143,7 @@ export function DiscoverClient({ initialFilters }: DiscoverClientProps) {
               myZones={myZones}
               zones={zones}
               selectedUserId={selectedUserId}
-              onZoneClick={setSelectedUserId}
+              onZoneClick={handleSelectRunner}
               className="h-[500px]"
             />
           ) : (
@@ -116,7 +157,8 @@ export function DiscoverClient({ initialFilters }: DiscoverClientProps) {
                   <RunnerCard
                     key={m.userId}
                     {...m}
-                    onSelect={setSelectedUserId}
+                    onSelect={handleSelectRunner}
+                    onMessage={handleMessage}
                   />
                 ))
               )}
@@ -141,13 +183,24 @@ export function DiscoverClient({ initialFilters }: DiscoverClientProps) {
                 <RunnerCard
                   key={m.userId}
                   {...m}
-                  onSelect={setSelectedUserId}
+                  onSelect={handleSelectRunner}
+                  onMessage={handleMessage}
                 />
               ))
             )}
           </div>
         )}
       </div>
+
+      {/* Runner Profile Panel */}
+      <RunnerProfilePanel
+        userId={profileUserId}
+        onClose={() => setProfileUserId(null)}
+        onMessage={(userId) => {
+          setProfileUserId(null);
+          handleMessage(userId);
+        }}
+      />
     </div>
   );
 }

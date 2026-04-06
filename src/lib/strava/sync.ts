@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import {
   getAllActivitiesSince,
   getAthlete,
+  getAthleteClubs,
   type StravaActivity,
 } from "./client";
 import { dbscan } from "@/lib/geo/clustering";
@@ -36,10 +37,67 @@ export async function syncUserData(userId: string, accessToken: string) {
         state: athlete.state,
         country: athlete.country,
         image: athlete.profile,
+        gender: athlete.sex === "M" ? "man" : athlete.sex === "F" ? "woman" : null,
       },
     });
   } catch (err) {
     console.error("[sync] Failed to fetch athlete profile:", err);
+  }
+
+  // 1b. Sync clubs
+  try {
+    const clubs = await getAthleteClubs(accessToken);
+    for (const club of clubs) {
+      // Upsert club
+      await prisma.club.upsert({
+        where: { stravaClubId: club.id },
+        create: {
+          stravaClubId: club.id,
+          name: club.name,
+          sportType: club.sport_type?.toLowerCase() || null,
+          city: club.city || null,
+          state: club.state || null,
+          country: club.country || null,
+          memberCount: club.member_count || 0,
+          profileImage: club.profile_medium || null,
+          coverImage: club.cover_photo || null,
+        },
+        update: {
+          name: club.name,
+          sportType: club.sport_type?.toLowerCase() || null,
+          city: club.city || null,
+          state: club.state || null,
+          country: club.country || null,
+          memberCount: club.member_count || 0,
+          profileImage: club.profile_medium || null,
+          coverImage: club.cover_photo || null,
+        },
+      });
+
+      // Get the club record
+      const dbClub = await prisma.club.findUnique({
+        where: { stravaClubId: club.id },
+      });
+      if (!dbClub) continue;
+
+      // Upsert club membership
+      await prisma.clubMember.upsert({
+        where: {
+          clubId_userId: { clubId: dbClub.id, userId },
+        },
+        create: {
+          clubId: dbClub.id,
+          userId,
+          role: club.admin ? "admin" : "member",
+        },
+        update: {
+          role: club.admin ? "admin" : "member",
+        },
+      });
+    }
+    console.log(`[sync] Synced ${clubs.length} clubs for user ${userId}`);
+  } catch (err) {
+    console.error("[sync] Failed to sync clubs:", err);
   }
 
   // 2. Fetch activities from last 90 days

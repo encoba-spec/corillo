@@ -7,10 +7,15 @@ export default async function DiscoverPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  // Get user's search preferences for initial filter state
-  const prefs = await prisma.searchPreferences.findUnique({
-    where: { userId: session.user.id },
-  });
+  const [prefs, user] = await Promise.all([
+    prisma.searchPreferences.findUnique({
+      where: { userId: session.user.id },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { units: true },
+    }),
+  ]);
 
   const initialFilters = {
     maxDistanceKm: prefs?.maxDistanceKm ?? 10,
@@ -20,7 +25,19 @@ export default async function DiscoverPage() {
     maxDistance: prefs?.maxDistance ?? 50.0,
     preferredDays: prefs?.preferredDays ?? [],
     preferredTimeSlots: prefs?.preferredTimeSlots ?? [],
+    raceDistance: null as string | null,
+    raceTargetTime: null as string | null,
+    raceTargetTimeTolerance: 15,
+    longRunDistance: null as number | null,
+    longRunDistanceTolerance: 5,
+    longRunPace: null as number | null,
+    longRunPaceTolerance: 1,
   };
 
-  return <DiscoverClient initialFilters={initialFilters} />;
+  return (
+    <DiscoverClient
+      initialFilters={initialFilters}
+      units={user?.units ?? "metric"}
+    />
+  );
 }

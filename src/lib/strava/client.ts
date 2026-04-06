@@ -104,6 +104,7 @@ export interface StravaAthlete {
   city: string | null;
   state: string | null;
   country: string | null;
+  sex: string | null; // "M" or "F"
 }
 
 export interface StravaActivity {
@@ -152,6 +153,30 @@ export async function getActivities(
     accessToken,
     { params }
   );
+}
+
+/**
+ * Fetch athlete's clubs
+ */
+export async function getAthleteClubs(
+  accessToken: string
+): Promise<StravaClub[]> {
+  return stravaFetch<StravaClub[]>("/athlete/clubs", accessToken, {
+    params: { per_page: 200 },
+  });
+}
+
+export interface StravaClub {
+  id: number;
+  name: string;
+  profile_medium: string;
+  cover_photo: string;
+  sport_type: string;
+  city: string;
+  state: string;
+  country: string;
+  member_count: number;
+  admin: boolean;
 }
 
 /**
