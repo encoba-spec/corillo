@@ -23,6 +23,7 @@ interface RunnerCardProps {
   paceScore: number;
   distanceScore: number;
   stravaAthleteId?: number | null;
+  isOnApp?: boolean;
   units?: string;
   onSelect?: (userId: string) => void;
   onMessage?: (userId: string) => void;
@@ -51,11 +52,13 @@ export function RunnerCard({
   paceScore,
   distanceScore,
   stravaAthleteId,
+  isOnApp,
   units = "metric",
   onSelect,
   onMessage,
   userId,
 }: RunnerCardProps) {
+  const onApp = isOnApp ?? (stravaAthleteId != null);
   const isImperial = units === "imperial";
   const paceUnit = isImperial ? "min/mi" : "min/km";
   const distUnit = isImperial ? "mi" : "km";
@@ -97,6 +100,16 @@ export function RunnerCard({
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-semibold truncate">{name || "Runner"}</h3>
             <CompatibilityBadge score={score} />
+            {onApp && (
+              <span
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center"
+                title="On Corillo"
+              >
+                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+            )}
             {stravaAthleteId && (
               <a
                 href={`https://www.strava.com/athletes/${stravaAthleteId}`}
@@ -165,8 +178,8 @@ export function RunnerCard({
             <ScoreBar label="Dist" value={distanceScore} color="bg-purple-400" />
           </div>
 
-          {/* Message button */}
-          {onMessage && (
+          {/* Message button - only for users on the app */}
+          {onMessage && onApp && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -176,6 +189,9 @@ export function RunnerCard({
             >
               Message
             </button>
+          )}
+          {!onApp && (
+            <p className="mt-2 text-[10px] text-zinc-400">Not yet on Corillo</p>
           )}
         </div>
       </div>

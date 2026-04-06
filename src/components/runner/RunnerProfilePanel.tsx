@@ -167,7 +167,19 @@ export function RunnerProfilePanel({
                 </div>
               )}
               <div>
-                <h2 className="text-xl font-bold">{profile.name || "Runner"}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold">{profile.name || "Runner"}</h2>
+                  {profile.stravaAthleteId && (
+                    <span
+                      className="flex-shrink-0 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center"
+                      title="On Corillo"
+                    >
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-zinc-500">
                   {[profile.city, profile.state, profile.country]
                     .filter(Boolean)
@@ -189,12 +201,18 @@ export function RunnerProfilePanel({
 
             {/* Action Buttons */}
             <div className="flex gap-3 mb-6">
-              <button
-                onClick={() => onMessage(profile.id)}
-                className="flex-1 py-2.5 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Message
-              </button>
+              {profile.stravaAthleteId ? (
+                <button
+                  onClick={() => onMessage(profile.id)}
+                  className="flex-1 py-2.5 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Message
+                </button>
+              ) : (
+                <div className="flex-1 py-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-400 rounded-lg text-sm font-medium text-center">
+                  Not yet on Corillo
+                </div>
+              )}
               {profile.stravaAthleteId && (
                 <a
                   href={`https://www.strava.com/athletes/${profile.stravaAthleteId}`}

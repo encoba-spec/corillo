@@ -15,6 +15,7 @@ export interface NearbyRunner {
   averageDistance: number | null;
   weeklyFrequency: number | null;
   preferredTimeSlot: string | null;
+  stravaAthleteId: number | null;
   minDistanceMeters: number;
   zoneLat: number;
   zoneLng: number;
@@ -65,6 +66,7 @@ export async function findNearbyRunners(
       u."averageDistance",
       u."weeklyFrequency",
       u."preferredTimeSlot",
+      u."stravaAthleteId",
       ST_Distance(rz1.center::geography, rz2.center::geography) AS "minDistanceMeters",
       rz2.latitude AS "zoneLat",
       rz2.longitude AS "zoneLng",

@@ -25,6 +25,8 @@ export interface MatchResult {
   averageDistance: number | null;
   weeklyFrequency: number | null;
   preferredTimeSlot: string | null;
+  stravaAthleteId: number | null;
+  isOnApp: boolean;
   score: number;
   locationScore: number;
   scheduleScore: number;
@@ -261,6 +263,8 @@ export async function findMatches(
       averageDistance: runner.averageDistance,
       weeklyFrequency: runner.weeklyFrequency,
       preferredTimeSlot: runner.preferredTimeSlot,
+      stravaAthleteId: runner.stravaAthleteId,
+      isOnApp: runner.stravaAthleteId != null,
       score,
       locationScore: locScore,
       scheduleScore: schedScore,
@@ -272,8 +276,12 @@ export async function findMatches(
     };
   });
 
-  // 6. Sort by score descending
-  results.sort((a, b) => b.score - a.score);
+  // 6. Sort: app users first, then by score descending
+  results.sort((a, b) => {
+    // Prioritize users on the app
+    if (a.isOnApp !== b.isOnApp) return a.isOnApp ? -1 : 1;
+    return b.score - a.score;
+  });
 
   // 7. Filter by schedule preferences if set
   if (options.preferredDays?.length || options.preferredTimeSlots?.length) {
