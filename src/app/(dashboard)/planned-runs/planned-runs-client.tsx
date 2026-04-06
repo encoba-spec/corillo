@@ -336,12 +336,12 @@ function ActivityCard({
         {run.genderRestriction && (
           <span className="text-xs bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-300 px-2 py-0.5 rounded-full">
             {run.genderRestriction === "woman"
-              ? "Women only"
+              ? "women only"
               : run.genderRestriction === "man"
-              ? "Men only"
+              ? "men only"
               : run.genderRestriction === "non_binary"
-              ? "Non-Binary only"
-              : "Open"}
+              ? "non-binary only"
+              : "open"}
           </span>
         )}
       </div>
@@ -376,7 +376,7 @@ function ActivityCard({
       <div className="flex gap-2">
         {isCreator ? (
           <span className="text-xs text-cyan-500 font-medium px-3 py-1.5 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg">
-            Your activity
+            your activity
           </span>
         ) : isParticipant ? (
           <button

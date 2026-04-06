@@ -120,7 +120,7 @@ export function RunnerCard({
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="flex-shrink-0 text-[#FC4C02] hover:text-[#e04400] transition-colors"
-              title={stravaAthleteId ? "View on Strava" : "Find on Strava"}
+              title={stravaAthleteId ? "view on strava" : "find on strava"}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
@@ -193,7 +193,7 @@ export function RunnerCard({
             </button>
           )}
           {!onApp && (
-            <p className="mt-2 text-[10px] text-zinc-400">Not yet on <span className="text-cyan-500">corillo</span></p>
+            <p className="mt-2 text-[10px] text-zinc-400">not yet on <span className="text-cyan-500">corillo</span></p>
           )}
         </div>
       </div>

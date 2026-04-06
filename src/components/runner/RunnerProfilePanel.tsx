@@ -210,7 +210,7 @@ export function RunnerProfilePanel({
                 </button>
               ) : (
                 <div className="flex-1 py-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-400 rounded-lg text-sm font-medium text-center">
-                  Not yet on <span className="text-cyan-500">corillo</span>
+                  not yet on <span className="text-cyan-500">corillo</span>
                 </div>
               )}
               <a
@@ -226,7 +226,7 @@ export function RunnerProfilePanel({
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
                 </svg>
-                {profile.stravaAthleteId ? "Strava Profile" : "Find on Strava"}
+                {profile.stravaAthleteId ? "strava profile" : "find on strava"}
               </a>
             </div>
 
