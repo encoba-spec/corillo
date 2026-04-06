@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { SyncButton } from "./sync-button";
+import { EditProfileForm } from "./edit-profile-form";
 import {
   DAY_LABELS,
   TIME_SLOTS,
@@ -170,6 +171,20 @@ export default async function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Training Profile */}
+        <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+          <h3 className="font-medium mb-4">Training Profile</h3>
+          <EditProfileForm
+            initialData={{
+              sport: user.sport,
+              longRunPace: user.longRunPace,
+              raceDistance: user.raceDistance,
+              raceTargetTime: user.raceTargetTime,
+              cyclingType: user.cyclingType,
+            }}
+          />
+        </div>
 
         {/* Privacy */}
         <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">

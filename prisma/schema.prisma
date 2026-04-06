@@ -32,6 +32,13 @@ model User {
   preferredDays        Int[]    // 0=Sun..6=Sat
   preferredTimeSlot    String?  // early_morning, morning, midday, evening, night
 
+  // Sport & training profile
+  sport                String?  // "running" | "cycling"
+  longRunPace          Float?   // min/km (runners only)
+  raceDistance         String?  // e.g. "5K", "10K", "Half Marathon", "Marathon", "Ultra"
+  raceTargetTime       String?  // e.g. "1:45:00" (runners only)
+  cyclingType          String?  // "road" | "mountain" | "both" (cyclists only)
+
   // Privacy
   isDiscoverable       Boolean  @default(false)
   locationPrecision    String   @default("neighborhood") // neighborhood, city, hidden
