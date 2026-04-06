@@ -242,6 +242,8 @@ model NotificationArea {
   latitude  Float?  // geocoded center (optional, for distance matching)
   longitude Float?  // geocoded center (optional, for distance matching)
   radiusKm  Float   @default(10) // notification radius
+  polygon   Json?   // GeoJSON polygon coordinates [[lng,lat], ...] for drawn areas
+  isPolygon Boolean @default(false) // true if area is defined by a drawn polygon
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

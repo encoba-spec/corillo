@@ -25,8 +25,38 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { label, latitude, longitude, radiusKm } = body;
+  const { label, latitude, longitude, radiusKm, polygon } = body;
 
+  // Polygon-based area
+  if (polygon && Array.isArray(polygon)) {
+    const areaLabel = label?.trim() || "Drawn area";
+
+    // Compute centroid of polygon for map centering
+    let centLat = 0,
+      centLng = 0;
+    for (const [lng, lat] of polygon) {
+      centLat += lat;
+      centLng += lng;
+    }
+    centLat /= polygon.length;
+    centLng /= polygon.length;
+
+    const area = await prisma.notificationArea.create({
+      data: {
+        userId: session.user.id,
+        label: areaLabel,
+        latitude: centLat,
+        longitude: centLng,
+        radiusKm: 0,
+        polygon: polygon,
+        isPolygon: true,
+      },
+    });
+
+    return NextResponse.json(area, { status: 201 });
+  }
+
+  // Named area (geocoded)
   if (!label?.trim()) {
     return NextResponse.json(
       { error: "Location name is required" },
@@ -62,6 +92,7 @@ export async function POST(request: Request) {
       latitude: lat,
       longitude: lng,
       radiusKm: radiusKm ? parseFloat(radiusKm) : 10,
+      isPolygon: false,
     },
   });
 

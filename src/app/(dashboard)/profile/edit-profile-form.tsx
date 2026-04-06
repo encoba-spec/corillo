@@ -1,6 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+
+const NotificationAreaMap = dynamic(
+  () =>
+    import("@/components/map/NotificationAreaMap").then(
+      (m) => m.NotificationAreaMap
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[350px] bg-zinc-800 rounded-lg animate-pulse" />
+    ),
+  }
+);
 
 const KM_TO_MI = 0.621371;
 const MI_TO_KM = 1.60934;
@@ -98,7 +112,15 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
 
   // Custom notification areas
   const [notifAreas, setNotifAreas] = useState<
-    { id: string; label: string; radiusKm: number }[]
+    {
+      id: string;
+      label: string;
+      radiusKm: number;
+      latitude: number | null;
+      longitude: number | null;
+      polygon: number[][] | null;
+      isPolygon: boolean;
+    }[]
   >([]);
   const [newAreaLabel, setNewAreaLabel] = useState("");
   const [addingArea, setAddingArea] = useState(false);
@@ -137,6 +159,23 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
       body: JSON.stringify({ id }),
     });
     setNotifAreas((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  async function handleDrawComplete(polygon: number[][]) {
+    try {
+      const res = await fetch("/api/notification-areas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: `Drawn area ${notifAreas.filter((a) => a.isPolygon).length + 1}`,
+          polygon,
+        }),
+      });
+      if (res.ok) {
+        const area = await res.json();
+        setNotifAreas((prev) => [...prev, area]);
+      }
+    } catch {}
   }
 
   // Sports (independent toggles)
@@ -669,12 +708,21 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
 
           {/* Custom Notification Areas */}
           {runNotifications === "custom_areas" && (
-            <div className="pl-4 border-l-2 border-cyan-500/30 space-y-3 animate-in fade-in duration-200">
+            <div className="pl-4 border-l-2 border-cyan-500/30 space-y-4 animate-in fade-in duration-200">
               <label className="block text-sm font-medium">
                 Notification areas
               </label>
               <p className="text-xs text-zinc-500">
-                Add towns, neighborhoods, zip codes, or any location to get notified about planned runs there.
+                Add areas by name or draw them on the map. You&apos;ll get notified about planned runs in these areas.
+              </p>
+
+              {/* Map showing all areas + draw tools */}
+              <NotificationAreaMap
+                areas={notifAreas}
+                onDrawComplete={handleDrawComplete}
+              />
+              <p className="text-xs text-zinc-400">
+                Use the polygon or rectangle tools on the map to draw custom areas.
               </p>
 
               {/* Existing areas */}
@@ -683,8 +731,17 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                   {notifAreas.map((area) => (
                     <div
                       key={area.id}
-                      className="flex items-center gap-1.5 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 px-3 py-1.5 rounded-lg text-sm"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm ${
+                        area.isPolygon
+                          ? "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
+                          : "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300"
+                      }`}
                     >
+                      {area.isPolygon && (
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4z" />
+                        </svg>
+                      )}
                       {area.label}
                       <button
                         type="button"
@@ -710,24 +767,29 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                 </div>
               )}
 
-              {/* Add new area */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newAreaLabel}
-                  onChange={(e) => setNewAreaLabel(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddArea())}
-                  placeholder="e.g. Condado, 00907, San Juan"
-                  className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddArea}
-                  disabled={addingArea || !newAreaLabel.trim()}
-                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  {addingArea ? "..." : "Add"}
-                </button>
+              {/* Add named area */}
+              <div>
+                <label className="text-xs font-medium text-zinc-500 block mb-1">
+                  Or add by name
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newAreaLabel}
+                    onChange={(e) => setNewAreaLabel(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddArea())}
+                    placeholder="e.g. Condado, 00907, San Juan"
+                    className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:border-cyan-500 focus:outline-none text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddArea}
+                    disabled={addingArea || !newAreaLabel.trim()}
+                    className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    {addingArea ? "..." : "Add"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
