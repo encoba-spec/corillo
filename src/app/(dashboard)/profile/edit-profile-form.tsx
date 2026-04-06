@@ -125,6 +125,41 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
   const [newAreaLabel, setNewAreaLabel] = useState("");
   const [addingArea, setAddingArea] = useState(false);
 
+  // Club notification opt-ins
+  const [clubs, setClubs] = useState<
+    { id: string; name: string; notifyPlannedActivities: boolean }[]
+  >([]);
+
+  useEffect(() => {
+    fetch("/api/clubs")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setClubs(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleToggleClubNotify(clubId: string, next: boolean) {
+    setClubs((prev) =>
+      prev.map((c) =>
+        c.id === clubId ? { ...c, notifyPlannedActivities: next } : c
+      )
+    );
+    try {
+      await fetch(`/api/clubs/${clubId}/notifications`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notifyPlannedActivities: next }),
+      });
+    } catch {
+      setClubs((prev) =>
+        prev.map((c) =>
+          c.id === clubId ? { ...c, notifyPlannedActivities: !next } : c
+        )
+      );
+    }
+  }
+
   useEffect(() => {
     fetch("/api/notification-areas")
       .then((r) => r.json())
@@ -817,6 +852,36 @@ export function EditProfileForm({ initialData }: EditProfileFormProps) {
                   onChange={(e) => setNotifyTimeEnd(e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-white focus:border-cyan-500 focus:outline-none text-sm"
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Club activity notifications */}
+          {clubs.length > 0 && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">
+                club activity notifications
+              </label>
+              <p className="text-xs text-zinc-500">
+                Get notified when a club manager schedules a planned activity.
+              </p>
+              <div className="space-y-2">
+                {clubs.map((club) => (
+                  <label
+                    key={club.id}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 cursor-pointer hover:border-zinc-600"
+                  >
+                    <span className="text-sm text-white">{club.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={club.notifyPlannedActivities}
+                      onChange={(e) =>
+                        handleToggleClubNotify(club.id, e.target.checked)
+                      }
+                      className="h-4 w-4 accent-cyan-500"
+                    />
+                  </label>
+                ))}
               </div>
             </div>
           )}

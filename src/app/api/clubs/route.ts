@@ -21,6 +21,7 @@ export async function GET() {
     memberships.map((m) => ({
       ...m.club,
       role: m.role,
+      notifyPlannedActivities: m.notifyPlannedActivities,
     }))
   );
 }

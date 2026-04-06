@@ -24,6 +24,7 @@ interface Club {
   id: string;
   name: string;
   profileImage: string | null;
+  role?: string;
 }
 
 interface PlannedRun {
@@ -429,7 +430,10 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
     fetch("/api/clubs")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setClubs(data);
+        if (Array.isArray(data)) {
+          // Only club managers (admins) can associate activities with a club
+          setClubs(data.filter((c: Club) => c.role === "admin"));
+        }
       })
       .catch(() => {});
   }, []);

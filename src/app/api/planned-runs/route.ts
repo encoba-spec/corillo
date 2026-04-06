@@ -127,6 +127,12 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+    if (membership.role !== "admin") {
+      return NextResponse.json(
+        { error: "Only club managers can associate activities with a club" },
+        { status: 403 }
+      );
+    }
   }
 
   const run = await prisma.plannedRun.create({
@@ -187,7 +193,7 @@ async function sendInvitations(
   if (clubOnly && clubId) {
     // Club-only run: invite all club members
     const members = await prisma.clubMember.findMany({
-      where: { clubId, userId: { not: creatorId } },
+      where: { clubId, userId: { not: creatorId }, notifyPlannedActivities: true },
       include: {
         user: {
           select: {
@@ -234,7 +240,7 @@ async function sendInvitations(
   // Also include club members if club-associated
   if (clubId) {
     const clubMembers = await prisma.clubMember.findMany({
-      where: { clubId, userId: { not: creatorId } },
+      where: { clubId, userId: { not: creatorId }, notifyPlannedActivities: true },
       select: { userId: true },
     });
     const clubUserIds = clubMembers.map((m) => m.userId);

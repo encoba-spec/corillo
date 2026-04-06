@@ -322,6 +322,7 @@ model ClubMember {
   clubId    String
   userId    String
   role      String   @default("member") // "member" | "admin"
+  notifyPlannedActivities Boolean @default(false)
   joinedAt  DateTime @default(now())
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
