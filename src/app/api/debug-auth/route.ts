@@ -4,7 +4,6 @@ import { NextRequest } from "next/server";
 export async function GET(request: NextRequest) {
   const results: Record<string, any> = {};
 
-  // Check env vars
   results.envCheck = {
     authSecretLength: process.env.AUTH_SECRET?.length || 0,
     stravaClientIdLength: process.env.STRAVA_CLIENT_ID?.length || 0,
@@ -14,75 +13,59 @@ export async function GET(request: NextRequest) {
     vercelEnv: process.env.VERCEL || "not set",
   };
 
-  // Test 1: Can we import auth?
-  try {
-    const { authConfig } = await import("@/lib/auth");
-    results.providerCount = authConfig.providers?.length;
-  } catch (e: any) {
-    results.importError = e.message;
-    return NextResponse.json(results);
-  }
-
-  // Test 2: Call the handler directly and capture errors
+  // Test: simulate what the signIn server action does (POST to /api/auth/signin/strava)
   try {
     const { handlers } = await import("@/lib/auth");
     const url = new URL("/api/auth/signin/strava", request.url);
-    const mockReq = new NextRequest(url.toString());
 
-    // Monkey-patch console.error to capture Auth.js error logging
+    // The signIn server action makes a POST request with form data
+    const body = new URLSearchParams({ callbackUrl: "/discover" });
+    const mockReq = new NextRequest(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+
     const originalError = console.error;
     const capturedErrors: string[] = [];
     console.error = (...args: any[]) => {
       capturedErrors.push(args.map(a => {
-        if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack?.split("\n").slice(0, 3).join("\n")}`;
+        if (a instanceof Error) return `${a.name}: ${a.message}`;
         if (typeof a === "object") return JSON.stringify(a).slice(0, 500);
         return String(a).slice(0, 500);
       }).join(" "));
       originalError(...args);
     };
 
-    const response = await handlers.GET(mockReq as any);
+    const response = await handlers.POST(mockReq as any);
     console.error = originalError;
 
-    results.handlerResult = {
+    results.postSigninResult = {
       status: response.status,
       location: response.headers.get("location"),
+      isRedirectToStrava: response.headers.get("location")?.includes("strava.com") || false,
     };
-    results.capturedErrors = capturedErrors;
+    if (capturedErrors.length > 0) {
+      results.capturedErrors = capturedErrors;
+    }
   } catch (e: any) {
-    results.handlerException = {
+    results.postSigninError = {
       name: e.name,
       message: e.message,
       stack: e.stack?.split("\n").slice(0, 5),
     };
   }
 
-  // Test 3: Try to manually test the OAuth authorization URL construction
+  // Also test that GET /api/auth/providers still works
   try {
-    const { authConfig } = await import("@/lib/auth");
-    const provider = authConfig.providers[0] as any;
-    results.providerDetails = {
-      id: provider.id,
-      type: provider.type,
-      hasAuthorization: !!provider.authorization,
-      authorizationType: typeof provider.authorization,
-      authorizationUrl: typeof provider.authorization === "string"
-        ? provider.authorization
-        : provider.authorization?.url,
-      hasToken: !!provider.token,
-      tokenType: typeof provider.token,
-      tokenUrl: typeof provider.token === "string"
-        ? provider.token
-        : provider.token?.url,
-      hasUserinfo: !!provider.userinfo,
-      hasClient: !!provider.client,
-      clientMethod: provider.client?.token_endpoint_auth_method,
-      hasOptions: !!provider.options,
-      optionsKeys: provider.options ? Object.keys(provider.options) : [],
-      checks: provider.checks,
-    };
+    const { handlers } = await import("@/lib/auth");
+    const url = new URL("/api/auth/providers", request.url);
+    const mockReq = new NextRequest(url.toString());
+    const response = await handlers.GET(mockReq as any);
+    const data = await response.json();
+    results.providersCheck = { status: response.status, providers: Object.keys(data) };
   } catch (e: any) {
-    results.providerInspectError = e.message;
+    results.providersError = e.message;
   }
 
   return NextResponse.json(results);
