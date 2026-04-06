@@ -1,6 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
+
+const LocationPicker = dynamic(
+  () =>
+    import("@/components/map/LocationPicker").then((m) => m.LocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[300px] bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
+    ),
+  }
+);
 
 interface User {
   id: string;
@@ -262,7 +274,7 @@ function RunCard({
 
       <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mb-4">
         {run.estimatedPace && (
-          <span>{run.estimatedPace.toFixed(1)} min/km pace</span>
+          <span>{Math.floor(run.estimatedPace)}:{Math.round((run.estimatedPace % 1) * 60).toString().padStart(2, "0")} min/km pace</span>
         )}
         {run.estimatedDistance && (
           <span>{run.estimatedDistance.toFixed(1)} km</span>
@@ -360,6 +372,8 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+  const [addressSearch, setAddressSearch] = useState("");
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     fetch("/api/clubs")
@@ -389,6 +403,39 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
     );
   }
 
+  async function handleAddressSearch() {
+    if (!addressSearch.trim()) return;
+    setSearching(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+          addressSearch.trim()
+        )}&format=json&limit=1&addressdetails=1`,
+        { headers: { "User-Agent": "Corillo/1.0" } }
+      );
+      const results = await res.json();
+      if (results.length > 0) {
+        const result = results[0];
+        setLat(parseFloat(result.lat).toFixed(6));
+        setLng(parseFloat(result.lon).toFixed(6));
+        if (!locationName) {
+          setLocationName(result.display_name.split(",").slice(0, 2).join(",").trim());
+        }
+      } else {
+        setError("Address not found. Try a different search or drop a pin on the map.");
+      }
+    } catch {
+      setError("Search failed. Try again or drop a pin on the map.");
+    }
+    setSearching(false);
+  }
+
+  function handleMapLocationChange(newLat: number, newLng: number) {
+    setLat(newLat.toFixed(6));
+    setLng(newLng.toFixed(6));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title || !date || !time || !lat || !lng) {
@@ -401,6 +448,23 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
 
     const scheduledAt = new Date(`${date}T${time}`).toISOString();
 
+    // Parse MM:SS pace to decimal
+    let parsedPace: number | null = null;
+    if (pace) {
+      if (pace.includes(":")) {
+        const parts = pace.split(":");
+        if (parts.length === 2) {
+          const mins = parseInt(parts[0], 10);
+          const secs = parseInt(parts[1], 10);
+          if (!isNaN(mins) && !isNaN(secs)) {
+            parsedPace = mins + secs / 60;
+          }
+        }
+      } else {
+        parsedPace = parseFloat(pace) || null;
+      }
+    }
+
     try {
       const res = await fetch("/api/planned-runs", {
         method: "POST",
@@ -409,7 +473,7 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
           title,
           description: description || null,
           scheduledAt,
-          estimatedPace: pace || null,
+          estimatedPace: parsedPace,
           estimatedDistance: distance || null,
           latitude: lat,
           longitude: lng,
@@ -496,15 +560,14 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
             Pace (min/km)
           </label>
           <input
-            type="number"
-            step="0.1"
-            min="3"
-            max="12"
+            type="text"
+            inputMode="text"
             value={pace}
             onChange={(e) => setPace(e.target.value)}
-            placeholder="e.g. 5.5"
+            placeholder="e.g. 5:30"
             className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
           />
+          <p className="text-xs text-zinc-500 mt-0.5">MM:SS format</p>
         </div>
 
         <div>
@@ -597,39 +660,66 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
         )}
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium mb-1">
-            Meeting Point Coordinates
+          <label className="block text-sm font-medium mb-2">
+            Meeting Point
           </label>
-          <div className="flex gap-2">
+
+          {/* Address search + Use My Location */}
+          <div className="flex gap-2 mb-3">
             <input
-              type="number"
-              step="0.000001"
-              value={lat}
-              onChange={(e) => setLat(e.target.value)}
-              placeholder="Latitude"
-              className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
-              required
+              type="text"
+              value={addressSearch}
+              onChange={(e) => setAddressSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddressSearch();
+                }
+              }}
+              placeholder="Search address, landmark, or place..."
+              className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none text-sm"
             />
-            <input
-              type="number"
-              step="0.000001"
-              value={lng}
-              onChange={(e) => setLng(e.target.value)}
-              placeholder="Longitude"
-              className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
-              required
-            />
+            <button
+              type="button"
+              onClick={handleAddressSearch}
+              disabled={searching || !addressSearch.trim()}
+              className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+            >
+              {searching ? "..." : "Search"}
+            </button>
             <button
               type="button"
               onClick={handleGetLocation}
               disabled={useCurrentLocation}
               className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-sm transition-colors whitespace-nowrap"
+              title="Use my current location"
             >
-              {useCurrentLocation ? "..." : "Use My Location"}
+              {useCurrentLocation ? (
+                "..."
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
             </button>
           </div>
-          <p className="text-xs text-zinc-500 mt-1">
-            Use &ldquo;Use My Location&rdquo; or enter coordinates manually
+
+          {/* Map */}
+          <LocationPicker
+            latitude={lat ? parseFloat(lat) : null}
+            longitude={lng ? parseFloat(lng) : null}
+            onLocationChange={handleMapLocationChange}
+            className="h-[300px]"
+          />
+
+          <p className="text-xs text-zinc-500 mt-2">
+            Search for an address, use your location, or click the map to drop a pin.
+            {lat && lng && (
+              <span className="text-cyan-500 ml-1">
+                Pin set at {parseFloat(lat).toFixed(4)}, {parseFloat(lng).toFixed(4)}
+              </span>
+            )}
           </p>
         </div>
       </div>

@@ -8,6 +8,31 @@ const MI_TO_KM = 1.60934;
 
 const RACE_DISTANCES = ["5K", "10K", "Half Marathon", "Marathon", "Ultra"];
 
+/** Convert decimal minutes to MM:SS */
+function decimalToMMSS(decimal: number): string {
+  const mins = Math.floor(decimal);
+  const secs = Math.round((decimal - mins) * 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+/** Parse MM:SS or decimal to decimal minutes */
+function parseMMSS(value: string): number | null {
+  if (!value.trim()) return null;
+  if (value.includes(":")) {
+    const parts = value.split(":");
+    if (parts.length === 2) {
+      const mins = parseInt(parts[0], 10);
+      const secs = parseInt(parts[1], 10);
+      if (!isNaN(mins) && !isNaN(secs) && secs >= 0 && secs < 60) {
+        return mins + secs / 60;
+      }
+    }
+    return null;
+  }
+  const val = parseFloat(value);
+  return isNaN(val) ? null : val;
+}
+
 export interface FilterValues {
   maxDistanceKm: number;
   minPace: number;
@@ -159,7 +184,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
           {/* Pace Range */}
           <div>
             <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Pace: {displayMinPace.toFixed(1)} - {displayMaxPace.toFixed(1)} {paceUnit}
+              Pace: {decimalToMMSS(displayMinPace)} - {decimalToMMSS(displayMaxPace)} {paceUnit}
             </label>
             <div className="flex gap-2 mt-1">
               <input
@@ -190,8 +215,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
               />
             </div>
             <div className="flex justify-between text-[10px] text-zinc-400">
-              <span>{paceSliderMin.toFixed(0)} {paceUnit} (fast)</span>
-              <span>{paceSliderMax.toFixed(0)} {paceUnit} (easy)</span>
+              <span>{decimalToMMSS(paceSliderMin)} {paceUnit} (fast)</span>
+              <span>{decimalToMMSS(paceSliderMax)} {paceUnit} (easy)</span>
             </div>
           </div>
 
@@ -414,29 +439,42 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                     Long run pace ({paceUnit})
                   </label>
                   <input
-                    type="number"
-                    step="0.1"
-                    min="0"
+                    type="text"
+                    inputMode="text"
                     value={
                       filters.longRunPace != null
-                        ? paceKmToDisplay(filters.longRunPace).toFixed(1)
+                        ? decimalToMMSS(paceKmToDisplay(filters.longRunPace))
                         : ""
                     }
-                    onChange={(e) =>
-                      update({
-                        longRunPace: e.target.value
-                          ? displayToPaceKm(parseFloat(e.target.value))
-                          : null,
-                      })
-                    }
-                    placeholder={`e.g. ${isImperial ? "8.5" : "5.5"}`}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (!raw) {
+                        update({ longRunPace: null });
+                        return;
+                      }
+                      // Allow typing in progress (don't parse incomplete input)
+                      const parsed = parseMMSS(raw);
+                      if (parsed != null) {
+                        update({ longRunPace: displayToPaceKm(parsed) });
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const parsed = parseMMSS(e.target.value);
+                      if (parsed != null) {
+                        update({ longRunPace: displayToPaceKm(parsed) });
+                      } else if (e.target.value) {
+                        update({ longRunPace: null });
+                      }
+                    }}
+                    placeholder={`e.g. ${isImperial ? "8:30" : "5:30"}`}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 text-sm focus:border-cyan-500 focus:outline-none"
                   />
+                  <p className="text-[10px] text-zinc-400 mt-0.5">MM:SS format</p>
                 </div>
                 {filters.longRunPace != null && (
                   <div className="pl-4 border-l-2 border-cyan-500/30 animate-in fade-in duration-200">
                     <label className="text-xs font-medium text-zinc-500 block mb-1">
-                      Tolerance: ± {paceKmToDisplay(filters.longRunPaceTolerance).toFixed(1)} {paceUnit}
+                      Tolerance: ± {decimalToMMSS(paceKmToDisplay(filters.longRunPaceTolerance))} {paceUnit}
                     </label>
                     <input
                       type="range"
