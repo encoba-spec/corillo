@@ -110,20 +110,22 @@ export function RunnerCard({
                 </svg>
               </span>
             )}
-            {stravaAthleteId && (
-              <a
-                href={`https://www.strava.com/athletes/${stravaAthleteId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="flex-shrink-0 text-[#FC4C02] hover:text-[#e04400] transition-colors"
-                title="View on Strava"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
-                </svg>
-              </a>
-            )}
+            <a
+              href={
+                stravaAthleteId
+                  ? `https://www.strava.com/athletes/${stravaAthleteId}`
+                  : `https://www.strava.com/athletes/search?query=${encodeURIComponent(name || "")}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex-shrink-0 text-[#FC4C02] hover:text-[#e04400] transition-colors"
+              title={stravaAthleteId ? "View on Strava" : "Find on Strava"}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
+              </svg>
+            </a>
           </div>
 
           {/* Location + Distance */}

@@ -213,19 +213,21 @@ export function RunnerProfilePanel({
                   Not yet on <span className="text-cyan-500">corillo</span>
                 </div>
               )}
-              {profile.stravaAthleteId && (
-                <a
-                  href={`https://www.strava.com/athletes/${profile.stravaAthleteId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 py-2.5 px-4 bg-[#FC4C02] hover:bg-[#e04400] text-white rounded-lg text-sm font-medium transition-colors text-center flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
-                  </svg>
-                  Strava Profile
-                </a>
-              )}
+              <a
+                href={
+                  profile.stravaAthleteId
+                    ? `https://www.strava.com/athletes/${profile.stravaAthleteId}`
+                    : `https://www.strava.com/athletes/search?query=${encodeURIComponent(profile.name || "")}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-2.5 px-4 bg-[#FC4C02] hover:bg-[#e04400] text-white rounded-lg text-sm font-medium transition-colors text-center flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
+                </svg>
+                {profile.stravaAthleteId ? "Strava Profile" : "Find on Strava"}
+              </a>
             </div>
 
             {/* Stats Grid */}
