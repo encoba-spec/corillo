@@ -33,19 +33,18 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
     setProfileUserId(userId);
   }
 
-  async function handleMessage(recipientId: string) {
+  async function handleConnect(userId: string) {
     try {
-      const res = await fetch("/api/messages", {
+      const res = await fetch("/api/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientId, content: "Hey! Want to run together?" }),
+        body: JSON.stringify({ userId }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/messages?thread=${data.threadId}`);
+      if (!res.ok) {
+        console.error("Failed to send connection request");
       }
     } catch (err) {
-      console.error("Failed to start conversation:", err);
+      console.error("Failed to send connection request:", err);
     }
   }
 
@@ -84,6 +83,9 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
   if (filters.corilloOnly) {
     matchParams.set("corilloOnly", "true");
   }
+  if (filters.raceName && filters.raceName.trim()) {
+    matchParams.set("raceName", filters.raceName.trim());
+  }
 
   const { data: matchData, isLoading: matchesLoading } = useSWR(
     `/api/runners/matches?${matchParams.toString()}`,
@@ -108,7 +110,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">discover runners</h1>
+        <h1 className="text-2xl font-bold">discover</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setView("map")}
@@ -162,7 +164,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
                     {...m}
                     units={units}
                     onSelect={handleSelectRunner}
-                    onMessage={handleMessage}
+                    onConnect={handleConnect}
                   />
                 ))
               )}
@@ -176,7 +178,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
             <h2 className="text-sm font-medium text-zinc-500 tracking-wider sticky top-0 bg-zinc-50 dark:bg-zinc-950 py-1">
               {matchesLoading
                 ? "Loading..."
-                : `${matches.length} runners nearby`}
+                : `${matches.length} athletes nearby`}
             </h2>
             {matchesLoading ? (
               <LoadingSkeleton />
@@ -188,7 +190,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
                   key={m.userId}
                   {...m}
                   onSelect={handleSelectRunner}
-                  onMessage={handleMessage}
+                  onConnect={handleConnect}
                 />
               ))
             )}
@@ -200,9 +202,8 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
       <RunnerProfilePanel
         userId={profileUserId}
         onClose={() => setProfileUserId(null)}
-        onMessage={(userId) => {
-          setProfileUserId(null);
-          handleMessage(userId);
+        onConnect={(userId) => {
+          handleConnect(userId);
         }}
         units={units}
       />
@@ -248,7 +249,7 @@ function EmptyState() {
           d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
         />
       </svg>
-      <p className="text-zinc-500 font-medium">No runners found</p>
+      <p className="text-zinc-500 font-medium">no athletes found</p>
       <p className="text-sm text-zinc-400 mt-1">
         Try expanding your search radius or adjusting filters.
       </p>

@@ -33,6 +33,7 @@ export default async function DiscoverPage() {
     longRunPace: null as number | null,
     longRunPaceTolerance: 1,
     corilloOnly: false,
+    raceName: null as string | null,
   };
 
   return (

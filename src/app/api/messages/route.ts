@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { areConnected } from "@/lib/connections";
 import { NextResponse } from "next/server";
 
 // GET /api/messages - get user's threads
@@ -72,6 +73,18 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Cannot message yourself" },
       { status: 400 }
+    );
+  }
+
+  // Gate: you can only start a conversation with a mutual corillo connection
+  const connected = await areConnected(session.user.id, recipientId);
+  if (!connected) {
+    return NextResponse.json(
+      {
+        error:
+          "You can only message athletes in your corillo. Send a connection request first.",
+      },
+      { status: 403 }
     );
   }
 

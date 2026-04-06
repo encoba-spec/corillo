@@ -1,95 +1,169 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import useSWR from "swr";
-import { RunnerCard } from "@/components/runner/RunnerCard";
-import { RunnerProfilePanel } from "@/components/runner/RunnerProfilePanel";
-import { FilterPanel, type FilterValues } from "@/components/runner/FilterPanel";
+import useSWR, { mutate } from "swr";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+interface MiniUser {
+  id: string;
+  name: string | null;
+  image: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  stravaAthleteId: number | null;
+  averagePace: number | null;
+  averageDistance: number | null;
+  weeklyFrequency: number | null;
+  preferredTimeSlot: string | null;
+}
+
+interface ConnectionEntry {
+  id: string;
+  createdAt: string;
+  user: MiniUser;
+}
+
+interface ConnectionsResponse {
+  accepted: ConnectionEntry[];
+  incoming: ConnectionEntry[];
+  outgoing: ConnectionEntry[];
+}
+
 interface MatchesClientProps {
-  initialFilters: FilterValues;
   units?: string;
 }
 
-export function MatchesClient({ initialFilters, units = "metric" }: MatchesClientProps) {
+export function MatchesClient({ units = "metric" }: MatchesClientProps) {
   const router = useRouter();
-  const [filters, setFilters] = useState<FilterValues>(initialFilters);
-  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const { data, isLoading } = useSWR<ConnectionsResponse>(
+    "/api/connections",
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleMessage(recipientId: string) {
+  const accepted = data?.accepted ?? [];
+  const incoming = data?.incoming ?? [];
+  const outgoing = data?.outgoing ?? [];
+
+  async function respond(id: string, action: "accept" | "decline") {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/connections/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "failed");
+      await mutate("/api/connections");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function remove(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/connections/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).error ?? "failed");
+      await mutate("/api/connections");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function message(userId: string) {
     try {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientId, content: "Hey! Want to run together?" }),
+        body: JSON.stringify({
+          recipientId: userId,
+          content: "Hey! Want to run together?",
+        }),
       });
       if (res.ok) {
-        const data = await res.json();
-        router.push(`/messages?thread=${data.threadId}`);
+        const json = await res.json();
+        router.push(`/messages?thread=${json.threadId}`);
+      } else {
+        const json = await res.json();
+        setError(json.error ?? "failed to start conversation");
       }
-    } catch (err) {
-      console.error("Failed to start conversation:", err);
+    } catch {
+      setError("failed to start conversation");
     }
   }
 
-  const params = new URLSearchParams();
-  params.set("maxDistanceKm", String(filters.maxDistanceKm));
-  params.set("minPace", String(filters.minPace));
-  params.set("maxPace", String(filters.maxPace));
-  params.set("minDistance", String(filters.minDistance));
-  params.set("maxDistance", String(filters.maxDistance));
-  if (filters.preferredDays.length > 0) {
-    params.set("preferredDays", filters.preferredDays.join(","));
-  }
-  if (filters.preferredTimeSlots.length > 0) {
-    params.set("preferredTimeSlots", filters.preferredTimeSlots.join(","));
-  }
-  if (filters.raceDistance) {
-    params.set("raceDistance", filters.raceDistance);
-  }
-  if (filters.raceTargetTime) {
-    params.set("raceTargetTime", filters.raceTargetTime);
-    params.set("raceTargetTimeTolerance", String(filters.raceTargetTimeTolerance));
-  }
-  if (filters.longRunDistance != null) {
-    params.set("longRunDistance", String(filters.longRunDistance));
-    params.set("longRunDistanceTolerance", String(filters.longRunDistanceTolerance));
-  }
-  if (filters.longRunPace != null) {
-    params.set("longRunPace", String(filters.longRunPace));
-    params.set("longRunPaceTolerance", String(filters.longRunPaceTolerance));
-  }
-  if (filters.corilloOnly) {
-    params.set("corilloOnly", "true");
-  }
-
-  const { data, isLoading } = useSWR(
-    `/api/runners/matches?${params.toString()}`,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
-
-  const matches = Array.isArray(data) ? data : [];
-
-  const handleFilterChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
-  }, []);
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold mb-4">your matches</h1>
+      <h1 className="text-2xl font-bold mb-1">
+        your <span className="text-cyan-500">corillo</span>
+      </h1>
+      <p className="text-sm text-zinc-500 mb-6">
+        the athletes you&apos;ve connected with
+      </p>
 
-      <div className="mb-4">
-        <FilterPanel initial={initialFilters} onChange={handleFilterChange} units={units} />
-      </div>
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+          {error}
+        </div>
+      )}
 
-      <div className="space-y-3">
+      {/* Incoming requests */}
+      {incoming.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-zinc-500 mb-3">
+            pending requests ({incoming.length})
+          </h2>
+          <div className="space-y-2">
+            {incoming.map((c) => (
+              <ConnectionRow
+                key={c.id}
+                entry={c}
+                units={units}
+                busy={busyId === c.id}
+                actions={
+                  <>
+                    <button
+                      onClick={() => respond(c.id, "accept")}
+                      disabled={busyId === c.id}
+                      className="px-3 py-1.5 text-xs font-medium bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      accept
+                    </button>
+                    <button
+                      onClick={() => respond(c.id, "decline")}
+                      disabled={busyId === c.id}
+                      className="px-3 py-1.5 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      decline
+                    </button>
+                  </>
+                }
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Accepted connections */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold text-zinc-500 mb-3">
+          connected ({accepted.length})
+        </h2>
         {isLoading ? (
-          <>
-            {[1, 2, 3, 4].map((i) => (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
               <div
                 key={i}
                 className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 animate-pulse"
@@ -103,41 +177,132 @@ export function MatchesClient({ initialFilters, units = "metric" }: MatchesClien
                 </div>
               </div>
             ))}
-          </>
-        ) : matches.length === 0 ? (
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
-            <p className="text-zinc-500 font-medium">No matches found</p>
+          </div>
+        ) : accepted.length === 0 ? (
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 text-center">
+            <p className="text-zinc-500 font-medium">
+              your <span className="text-cyan-500">corillo</span> is empty
+            </p>
             <p className="text-sm text-zinc-400 mt-1">
-              Try expanding your search radius or adjusting filters.
+              Head to discover to send connection requests.
             </p>
           </div>
         ) : (
-          <>
-            <p className="text-sm text-zinc-500 mb-2">
-              {matches.length} runners ranked by compatibility
-            </p>
-            {matches.map((m: any, i: number) => (
-              <div key={m.userId} className="relative">
-                <div className="absolute -left-8 top-4 text-sm font-bold text-zinc-300 dark:text-zinc-700">
-                  #{i + 1}
-                </div>
-                <RunnerCard {...m} units={units} onSelect={setProfileUserId} onMessage={handleMessage} />
-              </div>
+          <div className="space-y-2">
+            {accepted.map((c) => (
+              <ConnectionRow
+                key={c.id}
+                entry={c}
+                units={units}
+                busy={busyId === c.id}
+                actions={
+                  <>
+                    <button
+                      onClick={() => message(c.user.id)}
+                      className="px-3 py-1.5 text-xs font-medium bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
+                    >
+                      message
+                    </button>
+                    <button
+                      onClick={() => remove(c.id)}
+                      disabled={busyId === c.id}
+                      className="px-3 py-1.5 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-zinc-500 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      remove
+                    </button>
+                  </>
+                }
+              />
             ))}
-          </>
+          </div>
         )}
-      </div>
+      </section>
 
-      {/* Runner Profile Panel */}
-      <RunnerProfilePanel
-        userId={profileUserId}
-        onClose={() => setProfileUserId(null)}
-        onMessage={(userId) => {
-          setProfileUserId(null);
-          handleMessage(userId);
-        }}
-        units={units}
-      />
+      {/* Outgoing pending */}
+      {outgoing.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-zinc-500 mb-3">
+            sent requests ({outgoing.length})
+          </h2>
+          <div className="space-y-2">
+            {outgoing.map((c) => (
+              <ConnectionRow
+                key={c.id}
+                entry={c}
+                units={units}
+                busy={busyId === c.id}
+                actions={
+                  <button
+                    onClick={() => remove(c.id)}
+                    disabled={busyId === c.id}
+                    className="px-3 py-1.5 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    cancel
+                  </button>
+                }
+              />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function ConnectionRow({
+  entry,
+  actions,
+}: {
+  entry: ConnectionEntry;
+  units: string;
+  busy: boolean;
+  actions: React.ReactNode;
+}) {
+  const u = entry.user;
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+      <div className="flex items-center gap-3">
+        {u.image ? (
+          <img
+            src={u.image}
+            alt=""
+            className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+          />
+        ) : (
+          <div className="w-12 h-12 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center text-lg font-medium flex-shrink-0">
+            {u.name?.[0] ?? "?"}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold truncate">{u.name || "athlete"}</h3>
+            {u.stravaAthleteId != null && (
+              <span
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center"
+                title="on corillo"
+              >
+                <svg
+                  className="w-2.5 h-2.5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={3}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-zinc-500 truncate">
+            {[u.city, u.state].filter(Boolean).join(", ") || "location not set"}
+          </p>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">{actions}</div>
+      </div>
     </div>
   );
 }

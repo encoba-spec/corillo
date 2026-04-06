@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "corillo - Find Your Running Crew",
   description:
-    "Connect with runners in your area based on location, schedule, and pace. Plan group runs and find your perfect training partners.",
+    "Connect with athletes in your area based on location, schedule, and pace. Plan group runs and find your perfect training partners.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

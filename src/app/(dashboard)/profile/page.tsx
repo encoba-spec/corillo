@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { SyncButton } from "./sync-button";
 import { EditProfileForm } from "./edit-profile-form";
+import { RacesManager } from "./races-manager";
 import {
   DAY_LABELS,
   TIME_SLOTS,
@@ -235,6 +236,12 @@ export default async function ProfilePage() {
               notifyTimeEnd: user.notifyTimeEnd,
             }}
           />
+        </div>
+
+        {/* Races */}
+        <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+          <h3 className="font-medium mb-4">my races</h3>
+          <RacesManager />
         </div>
 
         {/* Privacy */}

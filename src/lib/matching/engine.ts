@@ -77,6 +77,7 @@ export async function findMatches(
     longRunPace: overrides?.longRunPace ?? null,
     longRunPaceTolerance: overrides?.longRunPaceTolerance ?? 1,
     corilloOnly: overrides?.corilloOnly ?? false,
+    raceName: overrides?.raceName ?? null,
   };
 
   // 1. Spatial pre-filter: find nearby discoverable runners
@@ -131,6 +132,23 @@ export async function findMatches(
   }
 
   if (filteredNearby.length === 0) return [];
+
+  // Race filter: keep only candidates whose UserRace.name (case-insensitive
+  // contains) matches the provided race name.
+  if (options.raceName && options.raceName.trim()) {
+    const needle = options.raceName.trim();
+    const candidateIds = filteredNearby.map((r) => r.userId);
+    const matchingRaces = await prisma.userRace.findMany({
+      where: {
+        userId: { in: candidateIds },
+        name: { contains: needle, mode: "insensitive" },
+      },
+      select: { userId: true },
+    });
+    const raceUserIds = new Set(matchingRaces.map((r) => r.userId));
+    filteredNearby = filteredNearby.filter((r) => raceUserIds.has(r.userId));
+    if (filteredNearby.length === 0) return [];
+  }
 
   // 3. Apply training-specific filters if set
   const needsTrainingFilter =

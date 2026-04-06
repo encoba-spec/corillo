@@ -80,6 +80,50 @@ model User {
   sentMessages         Message[]
   accounts             Account[]
   sessions             Session[]
+
+  // Mutual connection (Facebook-style friend requests) relations
+  connectionsSent      Connection[] @relation("ConnectionRequester")
+  connectionsReceived  Connection[] @relation("ConnectionAddressee")
+
+  // Races the user is signed up for
+  races                UserRace[]
+}
+
+// Mutual connection (friend request) model
+// When requester sends a request, status = "pending". The addressee can accept or decline.
+// Once accepted, both users are "in each other's corillo" and can message.
+model Connection {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      String   @default("pending") // "pending" | "accepted" | "declined"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requester User @relation("ConnectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("ConnectionAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
+}
+
+// Races an athlete is signed up to participate in.
+// Used both as profile information and as a discovery filter.
+model UserRace {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String    // user-entered race name, e.g. "Boston Marathon 2026"
+  distance   String?   // "5K" | "10K" | "Half Marathon" | "Marathon" | "Ultra" | "Other"
+  raceDate   DateTime? // scheduled race date
+  targetTime String?   // e.g. "3:45:00"
+  city       String?   // e.g. "Boston, MA"
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([name])
 }
 
 // Auth.js required models

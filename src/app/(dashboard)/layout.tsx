@@ -30,9 +30,11 @@ export default async function DashboardLayout({
             </Link>
             <nav className="flex items-center gap-1">
               <NavLink href="/discover">discover</NavLink>
-              <NavLink href="/matches">matches</NavLink>
-              <NavLink href="/planned-runs">activities</NavLink>
+              <NavLink href="/matches">
+                your <span className="text-cyan-500">corillo</span>
+              </NavLink>
               <NavLink href="/messages">messages</NavLink>
+              <NavLink href="/planned-runs">activities</NavLink>
             </nav>
           </div>
           <div className="flex items-center gap-3">

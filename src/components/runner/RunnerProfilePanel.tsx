@@ -6,6 +6,22 @@ import { TIME_SLOT_LABELS } from "@/lib/matching/schedule";
 const KM_TO_MI = 0.621371;
 const MI_TO_KM = 1.60934;
 
+type ConnectionStatus =
+  | "none"
+  | "pending_outgoing"
+  | "pending_incoming"
+  | "accepted"
+  | "declined";
+
+interface UserRaceEntry {
+  id: string;
+  name: string;
+  distance: string | null;
+  raceDate: string | null;
+  targetTime: string | null;
+  city: string | null;
+}
+
 interface RunnerProfile {
   id: string;
   name: string | null;
@@ -31,6 +47,9 @@ interface RunnerProfile {
   runningZones: { id: string; label: string | null; activityCount: number }[];
   schedulePatterns: { dayOfWeek: number; timeSlot: string; frequency: number }[];
   clubs: { id: string; name: string; profileImage: string | null }[];
+  races: UserRaceEntry[];
+  connectionStatus: ConnectionStatus;
+  connectionId: string | null;
 }
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -52,19 +71,105 @@ function decimalToMMSS(decimal: number): string {
 interface RunnerProfilePanelProps {
   userId: string | null;
   onClose: () => void;
-  onMessage: (userId: string) => void;
+  onConnect?: (userId: string) => void;
   units?: string;
 }
 
 export function RunnerProfilePanel({
   userId,
   onClose,
-  onMessage,
+  onConnect,
   units = "metric",
 }: RunnerProfilePanelProps) {
   const [profile, setProfile] = useState<RunnerProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function refetch() {
+    if (!userId) return;
+    const res = await fetch(`/api/runners/${userId}`);
+    if (res.ok) setProfile(await res.json());
+  }
+
+  async function sendRequest() {
+    if (!profile) return;
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: profile.id }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "failed");
+      if (onConnect) onConnect(profile.id);
+      await refetch();
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : "failed");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function respond(action: "accept" | "decline") {
+    if (!profile?.connectionId) return;
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/connections/${profile.connectionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "failed");
+      await refetch();
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : "failed");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function cancelRequest() {
+    if (!profile?.connectionId) return;
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/connections/${profile.connectionId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "failed");
+      await refetch();
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : "failed");
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function sendMessage() {
+    if (!profile) return;
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientId: profile.id,
+          content: "Hey! Want to run together?",
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "failed");
+      const data = await res.json();
+      window.location.href = `/messages?thread=${data.threadId}`;
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : "failed");
+      setActionBusy(false);
+    }
+  }
 
   const isImperial = units === "imperial";
   const paceUnit = isImperial ? "min/mi" : "min/km";
@@ -168,7 +273,7 @@ export function RunnerProfilePanel({
               )}
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold">{profile.name || "runner"}</h2>
+                  <h2 className="text-xl font-bold">{profile.name || "athlete"}</h2>
                   {profile.stravaAthleteId && (
                     <span
                       className="flex-shrink-0 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center"
@@ -200,14 +305,50 @@ export function RunnerProfilePanel({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 mb-6">
+            <div className="flex gap-3 mb-2">
               {profile.stravaAthleteId ? (
-                <button
-                  onClick={() => onMessage(profile.id)}
-                  className="flex-1 py-2.5 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  message
-                </button>
+                profile.connectionStatus === "accepted" ? (
+                  <button
+                    onClick={sendMessage}
+                    disabled={actionBusy}
+                    className="flex-1 py-2.5 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    message
+                  </button>
+                ) : profile.connectionStatus === "pending_outgoing" ? (
+                  <button
+                    onClick={cancelRequest}
+                    disabled={actionBusy}
+                    className="flex-1 py-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    request sent · cancel
+                  </button>
+                ) : profile.connectionStatus === "pending_incoming" ? (
+                  <>
+                    <button
+                      onClick={() => respond("accept")}
+                      disabled={actionBusy}
+                      className="flex-1 py-2.5 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      accept request
+                    </button>
+                    <button
+                      onClick={() => respond("decline")}
+                      disabled={actionBusy}
+                      className="py-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 rounded-lg text-sm font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                    >
+                      decline
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={sendRequest}
+                    disabled={actionBusy}
+                    className="flex-1 py-2.5 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    connect
+                  </button>
+                )
               ) : (
                 <div className="flex-1 py-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-400 rounded-lg text-sm font-medium text-center">
                   not yet on <span className="text-cyan-500">corillo</span>
@@ -229,6 +370,41 @@ export function RunnerProfilePanel({
                 {profile.stravaAthleteId ? "strava profile" : "find on strava"}
               </a>
             </div>
+            {actionError && (
+              <p className="text-xs text-red-500 mb-4">{actionError}</p>
+            )}
+            {!actionError && <div className="mb-4" />}
+
+            {/* Signed-up races */}
+            {profile.races && profile.races.length > 0 && (
+              <div className="mb-6 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                <h3 className="text-sm font-semibold mb-3 text-zinc-500 tracking-wider">
+                  signed up for
+                </h3>
+                <div className="space-y-2">
+                  {profile.races.map((race) => (
+                    <div
+                      key={race.id}
+                      className="bg-cyan-50 dark:bg-cyan-900/20 text-cyan-800 dark:text-cyan-200 px-3 py-2 rounded-lg text-sm"
+                    >
+                      <div className="font-medium">{race.name}</div>
+                      <div className="text-xs text-cyan-700 dark:text-cyan-300 mt-0.5">
+                        {[
+                          race.distance,
+                          race.raceDate
+                            ? new Date(race.raceDate).toLocaleDateString()
+                            : null,
+                          race.city,
+                          race.targetTime ? `goal ${race.targetTime}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

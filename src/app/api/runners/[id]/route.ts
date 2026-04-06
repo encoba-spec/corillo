@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getConnectionStatus } from "@/lib/connections";
 import { NextResponse } from "next/server";
 
 // GET /api/runners/[id] - get a runner's public profile
@@ -53,6 +54,17 @@ export async function GET(
           },
         },
       },
+      races: {
+        orderBy: [{ raceDate: "asc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          name: true,
+          distance: true,
+          raceDate: true,
+          targetTime: true,
+          city: true,
+        },
+      },
       _count: {
         select: { activities: true },
       },
@@ -92,7 +104,16 @@ export async function GET(
       name: m.club.name,
       profileImage: m.club.profileImage,
     })),
+    races: user.races,
   };
+
+  // Connection status from the viewer's perspective
+  const { status: connectionStatus, connectionId } = await getConnectionStatus(
+    session.user.id,
+    user.id
+  );
+  profile.connectionStatus = connectionStatus;
+  profile.connectionId = connectionId;
 
   // Conditionally share pace/distance
   if (user.sharePace) {

@@ -29,6 +29,8 @@ export interface ScoringOptions {
   longRunPace?: number | null; // min/km
   longRunPaceTolerance?: number; // ± min/km
   corilloOnly?: boolean; // filter to app users only
+  // Race filter: match on UserRace.name (case-insensitive contains).
+  raceName?: string | null;
 }
 
 /**

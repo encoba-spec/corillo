@@ -42,6 +42,8 @@ export interface FilterValues {
   preferredDays: number[];
   preferredTimeSlots: string[];
   corilloOnly: boolean; // filter to corillo users only
+  // Race filter: match athletes signed up for a race with this name (case-insensitive contains)
+  raceName: string | null;
   // Training-specific filters
   raceDistance: string | null;
   raceTargetTime: string | null;
@@ -145,6 +147,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
     draft.preferredDays.length > 0 ||
     draft.preferredTimeSlots.length > 0 ||
     draft.corilloOnly ||
+    (draft.raceName != null && draft.raceName.trim() !== "") ||
     hasTrainingFilters;
 
   // Display values for sliders (converted to user units)
@@ -334,6 +337,25 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Race Filter */}
+          <div>
+            <label className="text-xs font-medium text-zinc-500 tracking-wider block mb-1">
+              signed up for race
+            </label>
+            <input
+              type="text"
+              value={draft.raceName ?? ""}
+              onChange={(e) =>
+                updateDraft({ raceName: e.target.value || null })
+              }
+              placeholder="e.g. Boston Marathon"
+              className="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 text-sm focus:border-cyan-500 focus:outline-none"
+            />
+            <p className="text-[10px] text-zinc-400 mt-0.5">
+              match athletes signed up for a race matching this name
+            </p>
           </div>
 
           {/* corillo Users Only */}

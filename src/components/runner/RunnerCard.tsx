@@ -26,7 +26,7 @@ interface RunnerCardProps {
   isOnApp?: boolean;
   units?: string;
   onSelect?: (userId: string) => void;
-  onMessage?: (userId: string) => void;
+  onConnect?: (userId: string) => void;
 }
 
 /** Convert decimal minutes to MM:SS */
@@ -55,7 +55,7 @@ export function RunnerCard({
   isOnApp,
   units = "metric",
   onSelect,
-  onMessage,
+  onConnect,
   userId,
 }: RunnerCardProps) {
   const onApp = isOnApp ?? (stravaAthleteId != null);
@@ -98,7 +98,7 @@ export function RunnerCard({
         <div className="flex-1 min-w-0">
           {/* Name + Badge */}
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold truncate">{name || "runner"}</h3>
+            <h3 className="font-semibold truncate">{name || "athlete"}</h3>
             <CompatibilityBadge score={score} />
             {onApp && (
               <span
@@ -180,16 +180,16 @@ export function RunnerCard({
             <ScoreBar label="Dist" value={distanceScore} color="bg-purple-400" />
           </div>
 
-          {/* Message button - only for users on the app */}
-          {onMessage && onApp && (
+          {/* Connect button - only for users on the app */}
+          {onConnect && onApp && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onMessage(userId);
+                onConnect(userId);
               }}
-              className="mt-3 px-3 py-1.5 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:text-cyan-500 rounded-lg transition-colors"
+              className="mt-3 px-3 py-1.5 text-xs font-medium bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
             >
-              message
+              connect
             </button>
           )}
           {!onApp && (

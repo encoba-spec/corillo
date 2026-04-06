@@ -46,7 +46,7 @@ export default async function LandingPage() {
             Find Your Running Crew
           </h1>
           <p className="text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto mb-10">
-            Connect with runners near you who share your pace, schedule, and
+            Connect with athletes near you who share your pace, schedule, and
             favorite routes. Plan group runs and never train alone again.
           </p>
           <Link
@@ -90,11 +90,11 @@ export default async function LandingPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold mb-2">
-                Discover Nearby Runners
+                Discover Nearby Athletes
               </h3>
               <p className="text-zinc-600 dark:text-zinc-400">
-                Find runners who train in your area. Set your preferred distance
-                range to discover the perfect training partners.
+                Find athletes who train in your area. Set your preferred
+                distance range to discover the perfect training partners.
               </p>
             </div>
 
@@ -118,7 +118,7 @@ export default async function LandingPage() {
                 Match by Schedule
               </h3>
               <p className="text-zinc-600 dark:text-zinc-400">
-                Filter by days and time slots that work for you. Find runners
+                Filter by days and time slots that work for you. Find athletes
                 whose schedules align with yours.
               </p>
             </div>
@@ -167,8 +167,8 @@ export default async function LandingPage() {
               },
               {
                 step: "3",
-                title: "Discover Runners",
-                desc: "Browse compatible runners on the map or as a ranked list.",
+                title: "Discover Athletes",
+                desc: "Browse compatible athletes on the map or as a ranked list.",
               },
               {
                 step: "4",

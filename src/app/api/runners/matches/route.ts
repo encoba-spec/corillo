@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
     overrides.longRunPaceTolerance = parseFloat(params.get("longRunPaceTolerance")!);
   if (params.get("corilloOnly") === "true")
     overrides.corilloOnly = true;
+  if (params.has("raceName"))
+    overrides.raceName = params.get("raceName")!;
 
   try {
     const matches = await findMatches(session.user.id, overrides);
