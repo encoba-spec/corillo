@@ -15,6 +15,7 @@ export async function GET(
 
   const { id } = await params;
 
+  try {
   const user = await prisma.user.findUnique({
     where: { id },
     select: {
@@ -129,4 +130,14 @@ export async function GET(
   }
 
   return NextResponse.json(profile);
+  } catch (error) {
+    console.error("[runners/[id]] Error loading profile:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to load profile",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
 }
