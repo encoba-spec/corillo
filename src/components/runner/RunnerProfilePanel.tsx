@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { TIME_SLOT_LABELS } from "@/lib/matching/schedule";
 
+const KM_TO_MI = 0.621371;
+const MI_TO_KM = 1.60934;
+
 interface RunnerProfile {
   id: string;
   name: string | null;
@@ -39,20 +42,33 @@ const TIME_SLOTS = [
   "night",
 ] as const;
 
+/** Convert decimal minutes to MM:SS */
+function decimalToMMSS(decimal: number): string {
+  const mins = Math.floor(decimal);
+  const secs = Math.round((decimal - mins) * 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
 interface RunnerProfilePanelProps {
   userId: string | null;
   onClose: () => void;
   onMessage: (userId: string) => void;
+  units?: string;
 }
 
 export function RunnerProfilePanel({
   userId,
   onClose,
   onMessage,
+  units = "metric",
 }: RunnerProfilePanelProps) {
   const [profile, setProfile] = useState<RunnerProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const isImperial = units === "imperial";
+  const paceUnit = isImperial ? "min/mi" : "min/km";
+  const distUnit = isImperial ? "mi" : "km";
 
   useEffect(() => {
     if (!userId) {
@@ -74,6 +90,16 @@ export function RunnerProfilePanel({
   }, [userId]);
 
   if (!userId) return null;
+
+  function formatPace(minPerKm: number): string {
+    return decimalToMMSS(isImperial ? minPerKm * MI_TO_KM : minPerKm);
+  }
+
+  function formatDistance(km: number): string {
+    return isImperial
+      ? `${(km * KM_TO_MI).toFixed(1)} ${distUnit}`
+      : `${km.toFixed(1)} ${distUnit}`;
+  }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
@@ -119,13 +145,24 @@ export function RunnerProfilePanel({
             {/* Header */}
             <div className="flex items-center gap-4 mb-6">
               {profile.image ? (
-                <img
-                  src={profile.image}
-                  alt=""
-                  className="w-20 h-20 rounded-full"
-                />
+                <a
+                  href={
+                    profile.stravaAthleteId
+                      ? `https://www.strava.com/athletes/${profile.stravaAthleteId}`
+                      : undefined
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0"
+                >
+                  <img
+                    src={profile.image}
+                    alt=""
+                    className="w-20 h-20 rounded-full object-cover hover:ring-2 hover:ring-cyan-500 transition-all"
+                  />
+                </a>
               ) : (
-                <div className="w-20 h-20 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center text-2xl font-medium">
+                <div className="w-20 h-20 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center text-2xl font-medium flex-shrink-0">
                   {profile.name?.[0] ?? "?"}
                 </div>
               )}
@@ -163,8 +200,11 @@ export function RunnerProfilePanel({
                   href={`https://www.strava.com/athletes/${profile.stravaAthleteId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-2.5 px-4 bg-[#FC4C02] hover:bg-[#e04400] text-white rounded-lg text-sm font-medium transition-colors text-center"
+                  className="flex-1 py-2.5 px-4 bg-[#FC4C02] hover:bg-[#e04400] text-white rounded-lg text-sm font-medium transition-colors text-center flex items-center justify-center gap-2"
                 >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
+                  </svg>
                   Strava Profile
                 </a>
               )}
@@ -175,13 +215,13 @@ export function RunnerProfilePanel({
               {profile.averagePace != null && (
                 <StatCard
                   label="Avg Pace"
-                  value={`${profile.averagePace.toFixed(1)} min/km`}
+                  value={`${formatPace(profile.averagePace)} ${paceUnit}`}
                 />
               )}
               {profile.averageDistance != null && (
                 <StatCard
                   label="Avg Distance"
-                  value={`${profile.averageDistance.toFixed(1)} km`}
+                  value={formatDistance(profile.averageDistance)}
                 />
               )}
               {profile.weeklyFrequency != null && (
@@ -218,7 +258,7 @@ export function RunnerProfilePanel({
                     <div className="flex justify-between">
                       <span className="text-zinc-500">Long Run Pace</span>
                       <span className="font-medium">
-                        {profile.longRunPace.toFixed(1)} min/km
+                        {formatPace(profile.longRunPace)} {paceUnit}
                       </span>
                     </div>
                   )}
@@ -226,7 +266,7 @@ export function RunnerProfilePanel({
                     <div className="flex justify-between">
                       <span className="text-zinc-500">Long Run Distance</span>
                       <span className="font-medium">
-                        {profile.longRunDistance.toFixed(1)} km
+                        {formatDistance(profile.longRunDistance)}
                       </span>
                     </div>
                   )}

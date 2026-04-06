@@ -3,6 +3,9 @@
 import { CompatibilityBadge } from "./CompatibilityBadge";
 import { TIME_SLOT_LABELS } from "@/lib/matching/schedule";
 
+const KM_TO_MI = 0.621371;
+const MI_TO_KM = 1.60934;
+
 interface RunnerCardProps {
   userId: string;
   name: string | null;
@@ -19,8 +22,17 @@ interface RunnerCardProps {
   scheduleScore: number;
   paceScore: number;
   distanceScore: number;
+  stravaAthleteId?: number | null;
+  units?: string;
   onSelect?: (userId: string) => void;
   onMessage?: (userId: string) => void;
+}
+
+/** Convert decimal minutes to MM:SS */
+function decimalToMMSS(decimal: number): string {
+  const mins = Math.floor(decimal);
+  const secs = Math.round((decimal - mins) * 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 export function RunnerCard({
@@ -38,10 +50,33 @@ export function RunnerCard({
   scheduleScore,
   paceScore,
   distanceScore,
+  stravaAthleteId,
+  units = "metric",
   onSelect,
   onMessage,
   userId,
 }: RunnerCardProps) {
+  const isImperial = units === "imperial";
+  const paceUnit = isImperial ? "min/mi" : "min/km";
+  const distUnit = isImperial ? "mi" : "km";
+
+  const displayPace =
+    averagePace != null
+      ? decimalToMMSS(isImperial ? averagePace * MI_TO_KM : averagePace)
+      : null;
+
+  const displayDistance =
+    averageDistance != null
+      ? isImperial
+        ? (averageDistance * KM_TO_MI).toFixed(1)
+        : averageDistance.toFixed(1)
+      : null;
+
+  const displayDistanceAway = isImperial
+    ? distanceKm * KM_TO_MI
+    : distanceKm;
+  const distAwayUnit = isImperial ? "mi" : "km";
+
   return (
     <div
       className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 hover:border-cyan-300 dark:hover:border-cyan-700 transition-colors cursor-pointer"
@@ -50,7 +85,7 @@ export function RunnerCard({
       <div className="flex items-start gap-3">
         {/* Avatar */}
         {image ? (
-          <img src={image} alt="" className="w-12 h-12 rounded-full flex-shrink-0" />
+          <img src={image} alt="" className="w-12 h-12 rounded-full flex-shrink-0 object-cover" />
         ) : (
           <div className="w-12 h-12 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center text-lg font-medium flex-shrink-0">
             {name?.[0] ?? "?"}
@@ -62,6 +97,20 @@ export function RunnerCard({
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-semibold truncate">{name || "Runner"}</h3>
             <CompatibilityBadge score={score} />
+            {stravaAthleteId && (
+              <a
+                href={`https://www.strava.com/athletes/${stravaAthleteId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex-shrink-0 text-[#FC4C02] hover:text-[#e04400] transition-colors"
+                title="View on Strava"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
+                </svg>
+              </a>
+            )}
           </div>
 
           {/* Location + Distance */}
@@ -69,28 +118,28 @@ export function RunnerCard({
             {[city, state].filter(Boolean).join(", ") || "Unknown location"}
             {" · "}
             <span className="text-cyan-500 font-medium">
-              {distanceKm < 1
-                ? `${Math.round(distanceKm * 1000)}m away`
-                : `${distanceKm.toFixed(1)}km away`}
+              {displayDistanceAway < 1
+                ? `${Math.round(displayDistanceAway * (isImperial ? 5280 : 1000))}${isImperial ? "ft" : "m"} away`
+                : `${displayDistanceAway.toFixed(1)}${distAwayUnit} away`}
             </span>
           </p>
 
           {/* Stats */}
           <div className="flex flex-wrap gap-3 text-xs text-zinc-600 dark:text-zinc-400">
-            {averagePace != null && (
+            {displayPace && (
               <span>
                 <span className="font-medium text-zinc-900 dark:text-zinc-200">
-                  {averagePace.toFixed(1)}
+                  {displayPace}
                 </span>{" "}
-                min/km
+                {paceUnit}
               </span>
             )}
-            {averageDistance != null && (
+            {displayDistance && (
               <span>
                 <span className="font-medium text-zinc-900 dark:text-zinc-200">
-                  {averageDistance.toFixed(1)}
+                  {displayDistance}
                 </span>{" "}
-                km avg
+                {distUnit} avg
               </span>
             )}
             {weeklyFrequency != null && (

@@ -157,6 +157,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
                   <RunnerCard
                     key={m.userId}
                     {...m}
+                    units={units}
                     onSelect={handleSelectRunner}
                     onMessage={handleMessage}
                   />
@@ -200,6 +201,7 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
           setProfileUserId(null);
           handleMessage(userId);
         }}
+        units={units}
       />
     </div>
   );

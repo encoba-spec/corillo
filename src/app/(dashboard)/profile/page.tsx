@@ -51,10 +51,16 @@ export default async function ProfilePage() {
   const KM_TO_MI = 0.621371;
   const MI_TO_KM = 1.60934;
 
+  function decimalToMMSS(decimal: number): string {
+    const mins = Math.floor(decimal);
+    const secs = Math.round((decimal - mins) * 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }
+
   const paceDisplay = user.averagePace
     ? isImperial
-      ? `${(user.averagePace * MI_TO_KM).toFixed(1)} min/mi`
-      : `${user.averagePace.toFixed(1)} min/km`
+      ? `${decimalToMMSS(user.averagePace * MI_TO_KM)} min/mi`
+      : `${decimalToMMSS(user.averagePace)} min/km`
     : "--";
 
   const distDisplay = user.averageDistance

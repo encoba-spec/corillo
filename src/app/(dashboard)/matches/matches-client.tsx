@@ -118,7 +118,7 @@ export function MatchesClient({ initialFilters, units = "metric" }: MatchesClien
                 <div className="absolute -left-8 top-4 text-sm font-bold text-zinc-300 dark:text-zinc-700">
                   #{i + 1}
                 </div>
-                <RunnerCard {...m} onSelect={setProfileUserId} onMessage={handleMessage} />
+                <RunnerCard {...m} units={units} onSelect={setProfileUserId} onMessage={handleMessage} />
               </div>
             ))}
           </>
@@ -133,6 +133,7 @@ export function MatchesClient({ initialFilters, units = "metric" }: MatchesClien
           setProfileUserId(null);
           handleMessage(userId);
         }}
+        units={units}
       />
     </div>
   );
