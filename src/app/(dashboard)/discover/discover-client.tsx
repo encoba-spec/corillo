@@ -81,6 +81,9 @@ export function DiscoverClient({ initialFilters, units = "metric" }: DiscoverCli
     matchParams.set("longRunPace", String(filters.longRunPace));
     matchParams.set("longRunPaceTolerance", String(filters.longRunPaceTolerance));
   }
+  if (filters.corilloOnly) {
+    matchParams.set("corilloOnly", "true");
+  }
 
   const { data: matchData, isLoading: matchesLoading } = useSWR(
     `/api/runners/matches?${matchParams.toString()}`,

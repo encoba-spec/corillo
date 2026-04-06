@@ -82,11 +82,14 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const {
+    activityType,
     title,
     description,
     scheduledAt,
     estimatedPace,
+    estimatedSpeed,
     estimatedDistance,
+    terrainType,
     latitude,
     longitude,
     locationName,
@@ -129,11 +132,14 @@ export async function POST(request: Request) {
   const run = await prisma.plannedRun.create({
     data: {
       creatorId: session.user.id,
+      activityType: activityType || "run",
       title,
       description: description || null,
       scheduledAt: scheduledDate,
       estimatedPace: estimatedPace ? parseFloat(estimatedPace) : null,
+      estimatedSpeed: estimatedSpeed ? parseFloat(estimatedSpeed) : null,
       estimatedDistance: estimatedDistance ? parseFloat(estimatedDistance) : null,
+      terrainType: terrainType || null,
       latitude: parseFloat(latitude),
       longitude: parseFloat(longitude),
       locationName: locationName || null,

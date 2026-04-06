@@ -76,6 +76,7 @@ export async function findMatches(
     longRunDistanceTolerance: overrides?.longRunDistanceTolerance ?? 5,
     longRunPace: overrides?.longRunPace ?? null,
     longRunPaceTolerance: overrides?.longRunPaceTolerance ?? 1,
+    corilloOnly: overrides?.corilloOnly ?? true,
   };
 
   // 1. Spatial pre-filter: find nearby discoverable runners
@@ -122,6 +123,11 @@ export async function findMatches(
     });
     const genderMatchIds = new Set(usersWithGender.map((u) => u.id));
     filteredNearby = filteredNearby.filter((r) => genderMatchIds.has(r.userId));
+  }
+
+  // Filter to corillo app users only (have stravaAthleteId)
+  if (options.corilloOnly) {
+    filteredNearby = filteredNearby.filter((r) => r.stravaAthleteId != null);
   }
 
   if (filteredNearby.length === 0) return [];

@@ -21,7 +21,7 @@ export default async function LoginPage() {
               className="h-14 w-auto mx-auto mb-2"
               priority
             />
-            <h1 className="text-2xl font-bold">Welcome to corillo</h1>
+            <h1 className="text-2xl font-bold">Welcome to <span className="text-cyan-500">corillo</span></h1>
             <p className="text-zinc-600 dark:text-zinc-400 mt-2">
               Connect your Strava account to find your running crew.
             </p>

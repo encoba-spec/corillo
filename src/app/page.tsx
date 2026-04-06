@@ -193,7 +193,7 @@ export default async function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <div className="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-zinc-500">
-          corillo is not affiliated with Strava, Inc.
+          <span className="text-cyan-500">corillo</span> is not affiliated with Strava, Inc.
         </div>
       </footer>
     </div>

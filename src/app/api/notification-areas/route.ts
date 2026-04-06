@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(label.trim())}&format=json&limit=1`,
-        { headers: { "User-Agent": "Corillo/1.0" } }
+        { headers: { "User-Agent": "corillo/1.0" } }
       );
       const results = await res.json();
       if (results.length > 0) {

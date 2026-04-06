@@ -33,6 +33,7 @@ export default async function MatchesPage() {
     longRunDistanceTolerance: 5,
     longRunPace: null as number | null,
     longRunPaceTolerance: 1,
+    corilloOnly: true,
   };
 
   return (

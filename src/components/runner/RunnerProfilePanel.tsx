@@ -172,7 +172,7 @@ export function RunnerProfilePanel({
                   {profile.stravaAthleteId && (
                     <span
                       className="flex-shrink-0 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center"
-                      title="On Corillo"
+                      title="On corillo"
                     >
                       <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -210,7 +210,7 @@ export function RunnerProfilePanel({
                 </button>
               ) : (
                 <div className="flex-1 py-2.5 px-4 bg-zinc-200 dark:bg-zinc-800 text-zinc-400 rounded-lg text-sm font-medium text-center">
-                  Not yet on Corillo
+                  Not yet on <span className="text-cyan-500">corillo</span>
                 </div>
               )}
               {profile.stravaAthleteId && (

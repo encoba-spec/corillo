@@ -28,6 +28,7 @@ export interface ScoringOptions {
   longRunDistanceTolerance?: number; // ± km
   longRunPace?: number | null; // min/km
   longRunPaceTolerance?: number; // ± min/km
+  corilloOnly?: boolean; // filter to app users only
 }
 
 /**

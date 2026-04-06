@@ -41,6 +41,7 @@ export interface FilterValues {
   maxDistance: number;
   preferredDays: number[];
   preferredTimeSlots: string[];
+  corilloOnly: boolean; // filter to corillo users only
   // Training-specific filters
   raceDistance: string | null;
   raceTargetTime: string | null;
@@ -301,6 +302,21 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* corillo Users Only */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.corilloOnly}
+                onChange={(e) => update({ corilloOnly: e.target.checked })}
+                className="rounded border-zinc-300 text-cyan-500 focus:ring-cyan-500"
+              />
+              <span className="text-sm font-medium">
+                Only show <span className="text-cyan-500">corillo</span> users
+              </span>
+            </label>
           </div>
 
           {/* Training Filters Toggle */}

@@ -103,7 +103,7 @@ export function RunnerCard({
             {onApp && (
               <span
                 className="flex-shrink-0 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center"
-                title="On Corillo"
+                title="On corillo"
               >
                 <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -191,7 +191,7 @@ export function RunnerCard({
             </button>
           )}
           {!onApp && (
-            <p className="mt-2 text-[10px] text-zinc-400">Not yet on Corillo</p>
+            <p className="mt-2 text-[10px] text-zinc-400">Not yet on <span className="text-cyan-500">corillo</span></p>
           )}
         </div>
       </div>

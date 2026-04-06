@@ -28,11 +28,14 @@ interface Club {
 
 interface PlannedRun {
   id: string;
+  activityType: string;
   title: string;
   description: string | null;
   scheduledAt: string;
   estimatedPace: number | null;
+  estimatedSpeed: number | null;
   estimatedDistance: number | null;
+  terrainType: string | null;
   latitude: number;
   longitude: number;
   locationName: string | null;
@@ -117,17 +120,17 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Planned Runs</h1>
+        <h1 className="text-2xl font-bold">Planned Activities</h1>
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
         >
-          {showCreate ? "Cancel" : "Create Run"}
+          {showCreate ? "Cancel" : "Create Activity"}
         </button>
       </div>
 
       {showCreate && (
-        <CreateRunForm
+        <CreateActivityForm
           onCreated={() => {
             setShowCreate(false);
             fetchRuns();
@@ -138,7 +141,7 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
       {/* Invitations */}
       {invitations.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-3">Run Invitations</h2>
+          <h2 className="text-lg font-semibold mb-3">Activity Invitations</h2>
           <div className="space-y-3">
             {invitations.map((inv) => (
               <div
@@ -147,7 +150,10 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">{inv.run.title}</p>
+                    <div className="flex items-center gap-2">
+                      <ActivityTypeBadge type={inv.run.activityType} />
+                      <p className="font-medium">{inv.run.title}</p>
+                    </div>
                     <p className="text-sm text-zinc-500">
                       by {inv.run.creator.name} &middot;{" "}
                       {formatDate(inv.run.scheduledAt)} &middot;{" "}
@@ -180,7 +186,7 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
         {(
           [
             ["upcoming", "All Upcoming"],
-            ["mine", "My Runs"],
+            ["mine", "My Activities"],
             ["invited", "Invited"],
             ["club", "My Clubs"],
           ] as const
@@ -199,17 +205,17 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
         ))}
       </div>
 
-      {/* Run list */}
+      {/* Activity list */}
       {loading ? (
         <div className="text-center py-12 text-zinc-500">Loading...</div>
       ) : runs.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-12 text-center text-zinc-500">
-          <p>No planned runs yet. Create one to get started!</p>
+          <p>No planned activities yet. Create one to get started!</p>
         </div>
       ) : (
         <div className="space-y-4">
           {runs.map((run) => (
-            <RunCard
+            <ActivityCard
               key={run.id}
               run={run}
               userId={userId}
@@ -223,7 +229,34 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
   );
 }
 
-function RunCard({
+function ActivityTypeBadge({ type }: { type: string }) {
+  const isRide = type === "ride";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+        isRide
+          ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-300"
+          : "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-300"
+      }`}
+    >
+      {isRide ? (
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="5.5" cy="17.5" r="3.5" strokeWidth={2} />
+          <circle cx="18.5" cy="17.5" r="3.5" strokeWidth={2} />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6l-4 8h5l3-5" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.5 17.5L9 9l3 5" />
+        </svg>
+      ) : (
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      )}
+      {isRide ? "Ride" : "Run"}
+    </span>
+  );
+}
+
+function ActivityCard({
   run,
   userId,
   onJoin,
@@ -238,12 +271,16 @@ function RunCard({
   const isParticipant = run.participants.some((p) => p.user.id === userId);
   const isFull = run._count.participants >= run.maxParticipants;
   const date = new Date(run.scheduledAt);
+  const isRide = run.activityType === "ride";
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="font-semibold text-lg">{run.title}</h3>
+          <div className="flex items-center gap-2 mb-1">
+            <ActivityTypeBadge type={run.activityType} />
+            <h3 className="font-semibold text-lg">{run.title}</h3>
+          </div>
           <p className="text-sm text-zinc-500">
             by {run.creator.name}
             {run.locationName && ` \u00B7 ${run.locationName}`}
@@ -273,14 +310,22 @@ function RunCard({
       )}
 
       <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mb-4">
-        {run.estimatedPace && (
+        {isRide && run.estimatedSpeed && (
+          <span>{run.estimatedSpeed.toFixed(0)} km/h</span>
+        )}
+        {!isRide && run.estimatedPace && (
           <span>{Math.floor(run.estimatedPace)}:{Math.round((run.estimatedPace % 1) * 60).toString().padStart(2, "0")} min/km pace</span>
         )}
         {run.estimatedDistance && (
           <span>{run.estimatedDistance.toFixed(1)} km</span>
         )}
+        {isRide && run.terrainType && (
+          <span className="inline-flex items-center text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 px-2 py-0.5 rounded-full">
+            {run.terrainType === "mountain" ? "Mountain" : run.terrainType === "gravel" ? "Gravel" : "Road"}
+          </span>
+        )}
         <span>
-          {run._count.participants}/{run.maxParticipants} runners
+          {run._count.participants}/{run.maxParticipants} {isRide ? "riders" : "runners"}
         </span>
         {run.club && (
           <span className="inline-flex items-center gap-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full">
@@ -331,7 +376,7 @@ function RunCard({
       <div className="flex gap-2">
         {isCreator ? (
           <span className="text-xs text-cyan-500 font-medium px-3 py-1.5 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg">
-            Your run
+            Your activity
           </span>
         ) : isParticipant ? (
           <button
@@ -346,7 +391,7 @@ function RunCard({
             disabled={isFull}
             className="px-4 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors disabled:opacity-50"
           >
-            {isFull ? "Full" : "Join Run"}
+            {isFull ? "Full" : "Join"}
           </button>
         )}
       </div>
@@ -354,12 +399,15 @@ function RunCard({
   );
 }
 
-function CreateRunForm({ onCreated }: { onCreated: () => void }) {
+function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
+  const [activityType, setActivityType] = useState<"run" | "ride">("run");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [pace, setPace] = useState("");
+  const [speed, setSpeed] = useState("");
+  const [terrainType, setTerrainType] = useState("");
   const [distance, setDistance] = useState("");
   const [locationName, setLocationName] = useState("");
   const [lat, setLat] = useState("");
@@ -374,6 +422,8 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [addressSearch, setAddressSearch] = useState("");
   const [searching, setSearching] = useState(false);
+
+  const isRide = activityType === "ride";
 
   useEffect(() => {
     fetch("/api/clubs")
@@ -412,7 +462,7 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
           addressSearch.trim()
         )}&format=json&limit=1&addressdetails=1`,
-        { headers: { "User-Agent": "Corillo/1.0" } }
+        { headers: { "User-Agent": "corillo/1.0" } }
       );
       const results = await res.json();
       if (results.length > 0) {
@@ -448,9 +498,9 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
 
     const scheduledAt = new Date(`${date}T${time}`).toISOString();
 
-    // Parse MM:SS pace to decimal
+    // Parse MM:SS pace to decimal (for runs)
     let parsedPace: number | null = null;
-    if (pace) {
+    if (!isRide && pace) {
       if (pace.includes(":")) {
         const parts = pace.split(":");
         if (parts.length === 2) {
@@ -470,11 +520,14 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          activityType,
           title,
           description: description || null,
           scheduledAt,
           estimatedPace: parsedPace,
+          estimatedSpeed: isRide && speed ? parseFloat(speed) : null,
           estimatedDistance: distance || null,
+          terrainType: isRide ? terrainType || null : null,
           latitude: lat,
           longitude: lng,
           locationName: locationName || null,
@@ -487,7 +540,7 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create run");
+        throw new Error(data.error || "Failed to create activity");
       }
 
       onCreated();
@@ -503,7 +556,45 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
       onSubmit={handleSubmit}
       className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 mb-6"
     >
-      <h2 className="text-lg font-semibold mb-4">Create a Run</h2>
+      <h2 className="text-lg font-semibold mb-4">Create an Activity</h2>
+
+      {/* Activity Type Toggle */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-2">Activity Type</label>
+        <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => setActivityType("run")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
+              activityType === "run"
+                ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Run
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivityType("ride")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
+              activityType === "ride"
+                ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="5.5" cy="17.5" r="3.5" strokeWidth={2} />
+              <circle cx="18.5" cy="17.5" r="3.5" strokeWidth={2} />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6l-4 8h5l3-5" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.5 17.5L9 9l3 5" />
+            </svg>
+            Ride
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
@@ -512,7 +603,7 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Saturday Long Run"
+            placeholder={isRide ? "e.g. Sunday Group Ride" : "e.g. Saturday Long Run"}
             className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
             required
           />
@@ -555,20 +646,42 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Pace (min/km)
-          </label>
-          <input
-            type="text"
-            inputMode="text"
-            value={pace}
-            onChange={(e) => setPace(e.target.value)}
-            placeholder="e.g. 5:30"
-            className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
-          />
-          <p className="text-xs text-zinc-500 mt-0.5">MM:SS format</p>
-        </div>
+        {/* Run-specific: Pace */}
+        {!isRide && (
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Pace (min/km)
+            </label>
+            <input
+              type="text"
+              inputMode="text"
+              value={pace}
+              onChange={(e) => setPace(e.target.value)}
+              placeholder="e.g. 5:30"
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            />
+            <p className="text-xs text-zinc-500 mt-0.5">MM:SS format</p>
+          </div>
+        )}
+
+        {/* Ride-specific: Speed */}
+        {isRide && (
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Estimated Speed (km/h)
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="5"
+              max="60"
+              value={speed}
+              onChange={(e) => setSpeed(e.target.value)}
+              placeholder="e.g. 25"
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium mb-1">
@@ -580,10 +693,29 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
             min="1"
             value={distance}
             onChange={(e) => setDistance(e.target.value)}
-            placeholder="e.g. 10"
+            placeholder={isRide ? "e.g. 50" : "e.g. 10"}
             className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
           />
         </div>
+
+        {/* Ride-specific: Terrain */}
+        {isRide && (
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Terrain Type
+            </label>
+            <select
+              value={terrainType}
+              onChange={(e) => setTerrainType(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="">Any / Not specified</option>
+              <option value="road">Road</option>
+              <option value="mountain">Mountain</option>
+              <option value="gravel">Gravel</option>
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium mb-1">
@@ -607,7 +739,7 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
             type="text"
             value={locationName}
             onChange={(e) => setLocationName(e.target.value)}
-            placeholder="e.g. Central Park South Gate"
+            placeholder={isRide ? "e.g. Prospect Park Loop" : "e.g. Central Park South Gate"}
             className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
           />
         </div>
@@ -734,7 +866,7 @@ function CreateRunForm({ onCreated }: { onCreated: () => void }) {
           disabled={saving}
           className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
         >
-          {saving ? "Creating..." : "Create Run"}
+          {saving ? "Creating..." : `Create ${isRide ? "Ride" : "Run"}`}
         </button>
       </div>
     </form>

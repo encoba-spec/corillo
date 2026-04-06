@@ -62,6 +62,9 @@ export function MatchesClient({ initialFilters, units = "metric" }: MatchesClien
     params.set("longRunPace", String(filters.longRunPace));
     params.set("longRunPaceTolerance", String(filters.longRunPaceTolerance));
   }
+  if (filters.corilloOnly) {
+    params.set("corilloOnly", "true");
+  }
 
   const { data, isLoading } = useSWR(
     `/api/runners/matches?${params.toString()}`,

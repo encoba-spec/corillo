@@ -194,11 +194,14 @@ model SearchPreferences {
 model PlannedRun {
   id               String   @id @default(cuid())
   creatorId        String
+  activityType     String   @default("run") // "run" | "ride"
   title            String
   description      String?
   scheduledAt      DateTime
-  estimatedPace    Float?   // min/km
+  estimatedPace    Float?   // min/km (for runs)
+  estimatedSpeed   Float?   // km/h (for rides)
   estimatedDistance Float?  // km
+  terrainType      String?  // "road" | "mountain" | "gravel" (for rides)
   latitude         Float
   longitude        Float
   locationName     String?
