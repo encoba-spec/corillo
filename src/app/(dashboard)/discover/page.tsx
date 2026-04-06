@@ -32,7 +32,7 @@ export default async function DiscoverPage() {
     longRunDistanceTolerance: 5,
     longRunPace: null as number | null,
     longRunPaceTolerance: 1,
-    corilloOnly: true,
+    corilloOnly: false,
   };
 
   return (

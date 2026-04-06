@@ -68,8 +68,16 @@ function parseTimeToMinutes(t: string): number | null {
   return null;
 }
 
+/** Deep compare two FilterValues objects */
+function filtersEqual(a: FilterValues, b: FilterValues): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanelProps) {
-  const [filters, setFilters] = useState<FilterValues>(initial);
+  // `applied` = the filters currently in effect (sent to parent)
+  // `draft` = the filters the user is currently editing in the panel
+  const [applied, setApplied] = useState<FilterValues>(initial);
+  const [draft, setDraft] = useState<FilterValues>(initial);
   const [isOpen, setIsOpen] = useState(false);
   const [showTraining, setShowTraining] = useState(false);
 
@@ -91,41 +99,60 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
     return isImperial ? minPerDisplay * KM_TO_MI : minPerDisplay;
   }
 
-  const update = useCallback(
+  // Update draft only (no API call)
+  const updateDraft = useCallback(
     (partial: Partial<FilterValues>) => {
-      const next = { ...filters, ...partial };
-      setFilters(next);
-      onChange(next);
+      setDraft((prev) => ({ ...prev, ...partial }));
     },
-    [filters, onChange]
+    []
   );
 
   const toggleDay = (day: number) => {
-    const days = filters.preferredDays.includes(day)
-      ? filters.preferredDays.filter((d) => d !== day)
-      : [...filters.preferredDays, day];
-    update({ preferredDays: days });
+    const days = draft.preferredDays.includes(day)
+      ? draft.preferredDays.filter((d) => d !== day)
+      : [...draft.preferredDays, day];
+    updateDraft({ preferredDays: days });
   };
 
   const toggleTimeSlot = (slot: string) => {
-    const slots = filters.preferredTimeSlots.includes(slot)
-      ? filters.preferredTimeSlots.filter((s) => s !== slot)
-      : [...filters.preferredTimeSlots, slot];
-    update({ preferredTimeSlots: slots });
+    const slots = draft.preferredTimeSlots.includes(slot)
+      ? draft.preferredTimeSlots.filter((s) => s !== slot)
+      : [...draft.preferredTimeSlots, slot];
+    updateDraft({ preferredTimeSlots: slots });
   };
+
+  // Apply draft filters
+  function handleApply() {
+    setApplied(draft);
+    onChange(draft);
+  }
+
+  // Reset draft to match currently applied
+  function handleReset() {
+    setDraft(applied);
+  }
+
+  const hasUnsavedChanges = !filtersEqual(draft, applied);
 
   // Check if any training filter is active
   const hasTrainingFilters =
-    filters.raceDistance ||
-    filters.longRunDistance != null ||
-    filters.longRunPace != null;
+    draft.raceDistance ||
+    draft.longRunDistance != null ||
+    draft.longRunPace != null;
+
+  // Check if any filter differs from defaults
+  const hasActiveFilters =
+    draft.preferredDays.length > 0 ||
+    draft.preferredTimeSlots.length > 0 ||
+    draft.corilloOnly ||
+    hasTrainingFilters;
 
   // Display values for sliders (converted to user units)
-  const displayMaxDistance = kmToDisplay(filters.maxDistanceKm);
-  const displayMinDist = kmToDisplay(filters.minDistance);
-  const displayMaxDist = kmToDisplay(filters.maxDistance);
-  const displayMinPace = paceKmToDisplay(filters.minPace);
-  const displayMaxPace = paceKmToDisplay(filters.maxPace);
+  const displayMaxDistance = kmToDisplay(draft.maxDistanceKm);
+  const displayMinDist = kmToDisplay(draft.minDistance);
+  const displayMaxDist = kmToDisplay(draft.maxDistance);
+  const displayMinPace = paceKmToDisplay(draft.minPace);
+  const displayMaxPace = paceKmToDisplay(draft.maxPace);
 
   // Slider limits in display units
   const radiusMax = isImperial ? 31 : 50;
@@ -145,9 +172,14 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
           Filters
-          {(filters.preferredDays.length > 0 || filters.preferredTimeSlots.length > 0 || hasTrainingFilters) && (
+          {hasActiveFilters && (
             <span className="bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 text-xs px-1.5 py-0.5 rounded-full">
               active
+            </span>
+          )}
+          {hasUnsavedChanges && (
+            <span className="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 text-xs px-1.5 py-0.5 rounded-full">
+              unsaved
             </span>
           )}
         </span>
@@ -173,7 +205,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
               max={radiusMax}
               step={0.5}
               value={displayMaxDistance}
-              onChange={(e) => update({ maxDistanceKm: displayToKm(parseFloat(e.target.value)) })}
+              onChange={(e) => updateDraft({ maxDistanceKm: displayToKm(parseFloat(e.target.value)) })}
               className="w-full mt-1 accent-cyan-500"
             />
             <div className="flex justify-between text-[10px] text-zinc-400">
@@ -196,8 +228,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 value={displayMinPace}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
-                  const maxDisplay = paceKmToDisplay(filters.maxPace);
-                  update({ minPace: displayToPaceKm(Math.min(val, maxDisplay - (isImperial ? 0.8 : 0.5))) });
+                  const maxDisplay = paceKmToDisplay(draft.maxPace);
+                  updateDraft({ minPace: displayToPaceKm(Math.min(val, maxDisplay - (isImperial ? 0.8 : 0.5))) });
                 }}
                 className="flex-1 accent-cyan-500"
               />
@@ -209,8 +241,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 value={displayMaxPace}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
-                  const minDisplay = paceKmToDisplay(filters.minPace);
-                  update({ maxPace: displayToPaceKm(Math.max(val, minDisplay + (isImperial ? 0.8 : 0.5))) });
+                  const minDisplay = paceKmToDisplay(draft.minPace);
+                  updateDraft({ maxPace: displayToPaceKm(Math.max(val, minDisplay + (isImperial ? 0.8 : 0.5))) });
                 }}
                 className="flex-1 accent-cyan-500"
               />
@@ -235,8 +267,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 value={displayMinDist}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
-                  const maxDisplay = kmToDisplay(filters.maxDistance);
-                  update({ minDistance: displayToKm(Math.min(val, maxDisplay - (isImperial ? 0.6 : 1))) });
+                  const maxDisplay = kmToDisplay(draft.maxDistance);
+                  updateDraft({ minDistance: displayToKm(Math.min(val, maxDisplay - (isImperial ? 0.6 : 1))) });
                 }}
                 className="flex-1 accent-cyan-500"
               />
@@ -248,8 +280,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 value={displayMaxDist}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
-                  const minDisplay = kmToDisplay(filters.minDistance);
-                  update({ maxDistance: displayToKm(Math.max(val, minDisplay + (isImperial ? 0.6 : 1))) });
+                  const minDisplay = kmToDisplay(draft.minDistance);
+                  updateDraft({ maxDistance: displayToKm(Math.max(val, minDisplay + (isImperial ? 0.6 : 1))) });
                 }}
                 className="flex-1 accent-cyan-500"
               />
@@ -271,7 +303,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                   key={i}
                   onClick={() => toggleDay(i)}
                   className={`flex-1 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                    filters.preferredDays.includes(i)
+                    draft.preferredDays.includes(i)
                       ? "bg-cyan-500 text-white"
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                   }`}
@@ -293,7 +325,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                   key={slot}
                   onClick={() => toggleTimeSlot(slot)}
                   className={`px-2.5 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                    filters.preferredTimeSlots.includes(slot)
+                    draft.preferredTimeSlots.includes(slot)
                       ? "bg-cyan-500 text-white"
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                   }`}
@@ -309,8 +341,8 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={filters.corilloOnly}
-                onChange={(e) => update({ corilloOnly: e.target.checked })}
+                checked={draft.corilloOnly}
+                onChange={(e) => updateDraft({ corilloOnly: e.target.checked })}
                 className="rounded border-zinc-300 text-cyan-500 focus:ring-cyan-500"
               />
               <span className="text-sm font-medium">
@@ -347,11 +379,11 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                     Training for race
                   </label>
                   <select
-                    value={filters.raceDistance || ""}
+                    value={draft.raceDistance || ""}
                     onChange={(e) =>
-                      update({
+                      updateDraft({
                         raceDistance: e.target.value || null,
-                        raceTargetTime: e.target.value ? filters.raceTargetTime : null,
+                        raceTargetTime: e.target.value ? draft.raceTargetTime : null,
                       })
                     }
                     className="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm focus:border-cyan-500 focus:outline-none"
@@ -364,32 +396,32 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 </div>
 
                 {/* Race Target Time + Tolerance */}
-                {filters.raceDistance && (
+                {draft.raceDistance && (
                   <div className="pl-4 border-l-2 border-cyan-500/30 space-y-3 animate-in fade-in duration-200">
                     <div>
                       <label className="text-xs font-medium text-zinc-500 block mb-1">
-                        Target time for {filters.raceDistance}
+                        Target time for {draft.raceDistance}
                       </label>
                       <input
                         type="text"
-                        value={filters.raceTargetTime || ""}
-                        onChange={(e) => update({ raceTargetTime: e.target.value || null })}
+                        value={draft.raceTargetTime || ""}
+                        onChange={(e) => updateDraft({ raceTargetTime: e.target.value || null })}
                         placeholder="e.g. 1:45:00 or 25:30"
                         className="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 text-sm focus:border-cyan-500 focus:outline-none"
                       />
                     </div>
-                    {filters.raceTargetTime && (
+                    {draft.raceTargetTime && (
                       <div>
                         <label className="text-xs font-medium text-zinc-500 block mb-1">
-                          Tolerance: ± {filters.raceTargetTimeTolerance} min
+                          Tolerance: ± {draft.raceTargetTimeTolerance} min
                         </label>
                         <input
                           type="range"
                           min={5}
                           max={60}
                           step={5}
-                          value={filters.raceTargetTimeTolerance}
-                          onChange={(e) => update({ raceTargetTimeTolerance: parseInt(e.target.value) })}
+                          value={draft.raceTargetTimeTolerance}
+                          onChange={(e) => updateDraft({ raceTargetTimeTolerance: parseInt(e.target.value) })}
                           className="w-full accent-cyan-500"
                         />
                         <div className="flex justify-between text-[10px] text-zinc-400">
@@ -411,12 +443,12 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                     step="0.5"
                     min="0"
                     value={
-                      filters.longRunDistance != null
-                        ? kmToDisplay(filters.longRunDistance).toFixed(1)
+                      draft.longRunDistance != null
+                        ? kmToDisplay(draft.longRunDistance).toFixed(1)
                         : ""
                     }
                     onChange={(e) =>
-                      update({
+                      updateDraft({
                         longRunDistance: e.target.value
                           ? displayToKm(parseFloat(e.target.value))
                           : null,
@@ -426,19 +458,19 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                     className="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 text-sm focus:border-cyan-500 focus:outline-none"
                   />
                 </div>
-                {filters.longRunDistance != null && (
+                {draft.longRunDistance != null && (
                   <div className="pl-4 border-l-2 border-cyan-500/30 animate-in fade-in duration-200">
                     <label className="text-xs font-medium text-zinc-500 block mb-1">
-                      Tolerance: ± {kmToDisplay(filters.longRunDistanceTolerance).toFixed(1)} {distUnit}
+                      Tolerance: ± {kmToDisplay(draft.longRunDistanceTolerance).toFixed(1)} {distUnit}
                     </label>
                     <input
                       type="range"
                       min={isImperial ? 0.6 : 1}
                       max={isImperial ? 12.4 : 20}
                       step={isImperial ? 0.5 : 1}
-                      value={kmToDisplay(filters.longRunDistanceTolerance)}
+                      value={kmToDisplay(draft.longRunDistanceTolerance)}
                       onChange={(e) =>
-                        update({ longRunDistanceTolerance: displayToKm(parseFloat(e.target.value)) })
+                        updateDraft({ longRunDistanceTolerance: displayToKm(parseFloat(e.target.value)) })
                       }
                       className="w-full accent-cyan-500"
                     />
@@ -458,28 +490,27 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                     type="text"
                     inputMode="text"
                     value={
-                      filters.longRunPace != null
-                        ? decimalToMMSS(paceKmToDisplay(filters.longRunPace))
+                      draft.longRunPace != null
+                        ? decimalToMMSS(paceKmToDisplay(draft.longRunPace))
                         : ""
                     }
                     onChange={(e) => {
                       const raw = e.target.value;
                       if (!raw) {
-                        update({ longRunPace: null });
+                        updateDraft({ longRunPace: null });
                         return;
                       }
-                      // Allow typing in progress (don't parse incomplete input)
                       const parsed = parseMMSS(raw);
                       if (parsed != null) {
-                        update({ longRunPace: displayToPaceKm(parsed) });
+                        updateDraft({ longRunPace: displayToPaceKm(parsed) });
                       }
                     }}
                     onBlur={(e) => {
                       const parsed = parseMMSS(e.target.value);
                       if (parsed != null) {
-                        update({ longRunPace: displayToPaceKm(parsed) });
+                        updateDraft({ longRunPace: displayToPaceKm(parsed) });
                       } else if (e.target.value) {
-                        update({ longRunPace: null });
+                        updateDraft({ longRunPace: null });
                       }
                     }}
                     placeholder={`e.g. ${isImperial ? "8:30" : "5:30"}`}
@@ -487,19 +518,19 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                   />
                   <p className="text-[10px] text-zinc-400 mt-0.5">MM:SS format</p>
                 </div>
-                {filters.longRunPace != null && (
+                {draft.longRunPace != null && (
                   <div className="pl-4 border-l-2 border-cyan-500/30 animate-in fade-in duration-200">
                     <label className="text-xs font-medium text-zinc-500 block mb-1">
-                      Tolerance: ± {decimalToMMSS(paceKmToDisplay(filters.longRunPaceTolerance))} {paceUnit}
+                      Tolerance: ± {decimalToMMSS(paceKmToDisplay(draft.longRunPaceTolerance))} {paceUnit}
                     </label>
                     <input
                       type="range"
                       min={isImperial ? 0.3 : 0.2}
                       max={isImperial ? 4.8 : 3}
                       step={0.1}
-                      value={paceKmToDisplay(filters.longRunPaceTolerance)}
+                      value={paceKmToDisplay(draft.longRunPaceTolerance)}
                       onChange={(e) =>
-                        update({ longRunPaceTolerance: displayToPaceKm(parseFloat(e.target.value)) })
+                        updateDraft({ longRunPaceTolerance: displayToPaceKm(parseFloat(e.target.value)) })
                       }
                       className="w-full accent-cyan-500"
                     />
@@ -514,7 +545,7 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
                 {hasTrainingFilters && (
                   <button
                     onClick={() =>
-                      update({
+                      updateDraft({
                         raceDistance: null,
                         raceTargetTime: null,
                         raceTargetTimeTolerance: 15,
@@ -532,6 +563,24 @@ export function FilterPanel({ initial, onChange, units = "metric" }: FilterPanel
               </div>
             )}
           </div>
+
+          {/* Apply / Reset buttons */}
+          {hasUnsavedChanges && (
+            <div className="flex gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+              <button
+                onClick={handleApply}
+                className="flex-1 py-2 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Apply Filters
+              </button>
+              <button
+                onClick={handleReset}
+                className="py-2 px-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg text-sm font-medium transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

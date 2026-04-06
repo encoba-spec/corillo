@@ -76,7 +76,7 @@ export async function findMatches(
     longRunDistanceTolerance: overrides?.longRunDistanceTolerance ?? 5,
     longRunPace: overrides?.longRunPace ?? null,
     longRunPaceTolerance: overrides?.longRunPaceTolerance ?? 1,
-    corilloOnly: overrides?.corilloOnly ?? true,
+    corilloOnly: overrides?.corilloOnly ?? false,
   };
 
   // 1. Spatial pre-filter: find nearby discoverable runners
