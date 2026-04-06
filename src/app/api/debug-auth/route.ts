@@ -2,93 +2,88 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
+  const results: Record<string, any> = {};
+
+  // Check env vars
+  results.envCheck = {
+    authSecretLength: process.env.AUTH_SECRET?.length || 0,
+    stravaClientIdLength: process.env.STRAVA_CLIENT_ID?.length || 0,
+    stravaClientSecretLength: process.env.STRAVA_CLIENT_SECRET?.length || 0,
+    authTrustHostValue: process.env.AUTH_TRUST_HOST,
+    authUrl: process.env.AUTH_URL || "not set",
+    vercelEnv: process.env.VERCEL || "not set",
+  };
+
+  // Test 1: Can we import auth?
   try {
-    // Check env vars
-    const envCheck = {
-      hasAuthSecret: !!process.env.AUTH_SECRET,
-      authSecretLength: process.env.AUTH_SECRET?.length || 0,
-      hasStravaClientId: !!process.env.STRAVA_CLIENT_ID,
-      stravaClientIdLength: process.env.STRAVA_CLIENT_ID?.length || 0,
-      hasStravaClientSecret: !!process.env.STRAVA_CLIENT_SECRET,
-      stravaClientSecretLength: process.env.STRAVA_CLIENT_SECRET?.length || 0,
-      hasAuthTrustHost: !!process.env.AUTH_TRUST_HOST,
-      authTrustHostValue: process.env.AUTH_TRUST_HOST,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      nodeEnv: process.env.NODE_ENV,
-      authUrl: process.env.AUTH_URL || "not set",
-      nextauthUrl: process.env.NEXTAUTH_URL || "not set",
+    const { authConfig } = await import("@/lib/auth");
+    results.providerCount = authConfig.providers?.length;
+  } catch (e: any) {
+    results.importError = e.message;
+    return NextResponse.json(results);
+  }
+
+  // Test 2: Call the handler directly and capture errors
+  try {
+    const { handlers } = await import("@/lib/auth");
+    const url = new URL("/api/auth/signin/strava", request.url);
+    const mockReq = new NextRequest(url.toString());
+
+    // Monkey-patch console.error to capture Auth.js error logging
+    const originalError = console.error;
+    const capturedErrors: string[] = [];
+    console.error = (...args: any[]) => {
+      capturedErrors.push(args.map(a => {
+        if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack?.split("\n").slice(0, 3).join("\n")}`;
+        if (typeof a === "object") return JSON.stringify(a).slice(0, 500);
+        return String(a).slice(0, 500);
+      }).join(" "));
+      originalError(...args);
     };
 
-    // Try importing auth config
-    let authImportError = null;
-    let authConfigKeys = null;
-    try {
-      const { authConfig } = await import("@/lib/auth");
-      authConfigKeys = {
-        hasAdapter: !!authConfig.adapter,
-        providerCount: authConfig.providers?.length || 0,
-        sessionStrategy: authConfig.session?.strategy,
-        hasCallbacks: !!authConfig.callbacks,
-        providerIds: authConfig.providers?.map((p: any) => p.id || p.name || "unknown"),
-      };
-    } catch (e: any) {
-      authImportError = { message: e.message, stack: e.stack?.split("\n").slice(0, 5) };
-    }
+    const response = await handlers.GET(mockReq as any);
+    console.error = originalError;
 
-    // Try importing Prisma
-    let prismaError = null;
-    try {
-      const { prisma } = await import("@/lib/prisma");
-      await prisma.$queryRaw`SELECT 1`;
-    } catch (e: any) {
-      prismaError = { message: e.message, stack: e.stack?.split("\n").slice(0, 5) };
-    }
-
-    // Try to simulate what the signin handler does
-    let signinSimError = null;
-    try {
-      const { auth } = await import("@/lib/auth");
-      // Just test that auth() can be called
-      const session = await auth();
-      signinSimError = { session: session ? "exists" : "null", error: null };
-    } catch (e: any) {
-      signinSimError = { message: e.message, stack: e.stack?.split("\n").slice(0, 10) };
-    }
-
-    // Try to manually construct what the signin/strava route does
-    let handlerTestError = null;
-    try {
-      const { handlers } = await import("@/lib/auth");
-      const { NextRequest: NR } = await import("next/server");
-      // Create a NextRequest (which has nextUrl) to test the GET handler
-      const url = new URL("/api/auth/signin/strava", request.url);
-      const mockReq = new NR(url.toString());
-      handlerTestError = {
-        hasNextUrl: !!mockReq.nextUrl,
-        nextUrlHref: mockReq.nextUrl?.href,
-      };
-      const response = await handlers.GET(mockReq as any);
-      handlerTestError = {
-        ...handlerTestError,
-        status: response.status,
-        statusText: response.statusText,
-        locationHeader: response.headers.get("location"),
-      };
-    } catch (e: any) {
-      handlerTestError = { ...handlerTestError, message: e.message, stack: e.stack?.split("\n").slice(0, 10) };
-    }
-
-    return NextResponse.json({
-      envCheck,
-      authImportError,
-      authConfigKeys,
-      prismaError,
-      signinSimError,
-      handlerTestError,
-    });
+    results.handlerResult = {
+      status: response.status,
+      location: response.headers.get("location"),
+    };
+    results.capturedErrors = capturedErrors;
   } catch (e: any) {
-    return NextResponse.json({
-      topLevelError: { message: e.message, stack: e.stack?.split("\n").slice(0, 5) },
-    }, { status: 500 });
+    results.handlerException = {
+      name: e.name,
+      message: e.message,
+      stack: e.stack?.split("\n").slice(0, 5),
+    };
   }
+
+  // Test 3: Try to manually test the OAuth authorization URL construction
+  try {
+    const { authConfig } = await import("@/lib/auth");
+    const provider = authConfig.providers[0] as any;
+    results.providerDetails = {
+      id: provider.id,
+      type: provider.type,
+      hasAuthorization: !!provider.authorization,
+      authorizationType: typeof provider.authorization,
+      authorizationUrl: typeof provider.authorization === "string"
+        ? provider.authorization
+        : provider.authorization?.url,
+      hasToken: !!provider.token,
+      tokenType: typeof provider.token,
+      tokenUrl: typeof provider.token === "string"
+        ? provider.token
+        : provider.token?.url,
+      hasUserinfo: !!provider.userinfo,
+      hasClient: !!provider.client,
+      clientMethod: provider.client?.token_endpoint_auth_method,
+      hasOptions: !!provider.options,
+      optionsKeys: provider.options ? Object.keys(provider.options) : [],
+      checks: provider.checks,
+    };
+  } catch (e: any) {
+    results.providerInspectError = e.message;
+  }
+
+  return NextResponse.json(results);
 }
