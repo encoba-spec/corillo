@@ -185,8 +185,17 @@ export function RunnerProfilePanel({
     setError("");
 
     fetch(`/api/runners/${userId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load profile");
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = await res.text();
+          let msg = `Failed to load profile (${res.status})`;
+          try {
+            const j = JSON.parse(body);
+            if (j?.error) msg = `${msg}: ${j.error}`;
+          } catch {}
+          console.error("[RunnerProfilePanel] fetch failed", res.status, body);
+          throw new Error(msg);
+        }
         return res.json();
       })
       .then((data) => setProfile(data))
