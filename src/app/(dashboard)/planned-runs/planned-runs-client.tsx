@@ -57,7 +57,17 @@ interface Invitation {
   run: PlannedRun & { creator: User; _count: { participants: number } };
 }
 
-export function PlannedRunsClient({ userId }: { userId: string }) {
+const KM_TO_MI = 0.621371;
+const MI_TO_KM = 1.60934;
+
+export function PlannedRunsClient({
+  userId,
+  units = "metric",
+}: {
+  userId: string;
+  units?: string;
+}) {
+  const isImperial = units === "imperial";
   const [runs, setRuns] = useState<PlannedRun[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [filter, setFilter] = useState<"upcoming" | "mine" | "invited" | "club">(
@@ -131,6 +141,7 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
 
       {showCreate && (
         <CreateActivityForm
+          isImperial={isImperial}
           onCreated={() => {
             setShowCreate(false);
             fetchRuns();
@@ -219,6 +230,7 @@ export function PlannedRunsClient({ userId }: { userId: string }) {
               key={run.id}
               run={run}
               userId={userId}
+              isImperial={isImperial}
               onJoin={() => handleJoin(run.id)}
               onLeave={() => handleLeave(run.id)}
             />
@@ -259,19 +271,24 @@ function ActivityTypeBadge({ type }: { type: string }) {
 function ActivityCard({
   run,
   userId,
+  isImperial,
   onJoin,
   onLeave,
 }: {
   run: PlannedRun;
   userId: string;
+  isImperial: boolean;
   onJoin: () => void;
   onLeave: () => void;
 }) {
   const isCreator = run.creatorId === userId;
   const isParticipant = run.participants.some((p) => p.user.id === userId);
-  const isFull = run._count.participants >= run.maxParticipants;
   const date = new Date(run.scheduledAt);
   const isRide = run.activityType === "ride";
+
+  const distUnit = isImperial ? "mi" : "km";
+  const speedUnit = isImperial ? "mph" : "km/h";
+  const paceUnit = isImperial ? "min/mi" : "min/km";
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
@@ -310,14 +327,25 @@ function ActivityCard({
       )}
 
       <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mb-4">
-        {isRide && run.estimatedSpeed && (
-          <span>{run.estimatedSpeed.toFixed(0)} km/h</span>
+        {isRide && run.estimatedSpeed != null && (
+          <span>
+            {(isImperial ? run.estimatedSpeed * KM_TO_MI : run.estimatedSpeed).toFixed(0)} {speedUnit}
+          </span>
         )}
-        {!isRide && run.estimatedPace && (
-          <span>{Math.floor(run.estimatedPace)}:{Math.round((run.estimatedPace % 1) * 60).toString().padStart(2, "0")} min/km pace</span>
-        )}
-        {run.estimatedDistance && (
-          <span>{run.estimatedDistance.toFixed(1)} km</span>
+        {!isRide && run.estimatedPace != null && (() => {
+          const p = isImperial ? run.estimatedPace * MI_TO_KM : run.estimatedPace;
+          const mins = Math.floor(p);
+          const secs = Math.round((p % 1) * 60);
+          return (
+            <span>
+              {mins}:{secs.toString().padStart(2, "0")} {paceUnit} pace
+            </span>
+          );
+        })()}
+        {run.estimatedDistance != null && (
+          <span>
+            {(isImperial ? run.estimatedDistance * KM_TO_MI : run.estimatedDistance).toFixed(1)} {distUnit}
+          </span>
         )}
         {isRide && run.terrainType && (
           <span className="inline-flex items-center text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 px-2 py-0.5 rounded-full">
@@ -325,7 +353,7 @@ function ActivityCard({
           </span>
         )}
         <span>
-          {run._count.participants}/{run.maxParticipants} {isRide ? "riders" : "runners"}
+          {run._count.participants} {isRide ? "riders" : "runners"}
         </span>
         {run.club && (
           <span className="inline-flex items-center gap-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full">
@@ -388,10 +416,9 @@ function ActivityCard({
         ) : (
           <button
             onClick={onJoin}
-            disabled={isFull}
-            className="px-4 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
           >
-            {isFull ? "full" : "join"}
+            join
           </button>
         )}
       </div>
@@ -399,7 +426,16 @@ function ActivityCard({
   );
 }
 
-function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
+function CreateActivityForm({
+  onCreated,
+  isImperial,
+}: {
+  onCreated: () => void;
+  isImperial: boolean;
+}) {
+  const distUnit = isImperial ? "mi" : "km";
+  const speedUnit = isImperial ? "mph" : "km/h";
+  const paceUnit = isImperial ? "min/mi" : "min/km";
   const [activityType, setActivityType] = useState<"run" | "ride">("run");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -498,7 +534,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
 
     const scheduledAt = new Date(`${date}T${time}`).toISOString();
 
-    // Parse MM:SS pace to decimal (for runs)
+    // Parse MM:SS pace to decimal (for runs); input is in user units, server stores metric
     let parsedPace: number | null = null;
     if (!isRide && pace) {
       if (pace.includes(":")) {
@@ -513,6 +549,26 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
       } else {
         parsedPace = parseFloat(pace) || null;
       }
+      // Convert min/mi -> min/km if user entered imperial
+      if (parsedPace != null && isImperial) {
+        parsedPace = parsedPace * KM_TO_MI;
+      }
+    }
+
+    // Convert speed mph -> km/h if imperial
+    let parsedSpeed: number | null = null;
+    if (isRide && speed) {
+      parsedSpeed = parseFloat(speed);
+      if (isImperial && parsedSpeed) parsedSpeed = parsedSpeed * MI_TO_KM;
+    }
+
+    // Convert distance mi -> km if imperial
+    let parsedDistance: number | string | null = null;
+    if (distance) {
+      const d = parseFloat(distance);
+      if (!isNaN(d)) {
+        parsedDistance = isImperial ? d * MI_TO_KM : d;
+      }
     }
 
     try {
@@ -525,8 +581,8 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
           description: description || null,
           scheduledAt,
           estimatedPace: parsedPace,
-          estimatedSpeed: isRide && speed ? parseFloat(speed) : null,
-          estimatedDistance: distance || null,
+          estimatedSpeed: parsedSpeed,
+          estimatedDistance: parsedDistance,
           terrainType: isRide ? terrainType || null : null,
           latitude: lat,
           longitude: lng,
@@ -650,7 +706,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
         {!isRide && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              pace (min/km)
+              pace ({paceUnit})
             </label>
             <input
               type="text"
@@ -668,7 +724,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
         {isRide && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              estimated speed (km/h)
+              estimated speed ({speedUnit})
             </label>
             <input
               type="number"
@@ -685,7 +741,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
 
         <div>
           <label className="block text-sm font-medium mb-1">
-            distance (km)
+            distance ({distUnit})
           </label>
           <input
             type="number"
@@ -717,19 +773,7 @@ function CreateActivityForm({ onCreated }: { onCreated: () => void }) {
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            max participants
-          </label>
-          <input
-            type="number"
-            min="2"
-            max="100"
-            value={maxParticipants}
-            onChange={(e) => setMaxParticipants(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
-          />
-        </div>
+        {/* max participants hidden for now — may reintroduce to auto-close invites */}
 
         <div>
           <label className="block text-sm font-medium mb-1">
