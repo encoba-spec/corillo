@@ -27,6 +27,14 @@ export async function GET() {
           sender: { select: { id: true, name: true } },
         },
       },
+      activityRun: {
+        select: {
+          id: true,
+          title: true,
+          scheduledAt: true,
+          activityType: true,
+        },
+      },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -43,6 +51,7 @@ export async function GET() {
     return {
       ...thread,
       hasUnread,
+      isActivity: thread.activityRunId != null,
       otherMembers: thread.members
         .filter((m) => m.userId !== session.user!.id)
         .map((m) => m.user),

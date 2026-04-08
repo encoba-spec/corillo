@@ -46,9 +46,13 @@ interface PlannedRun {
   club: Club | null;
   creatorId: string;
   creator: User;
-  participants: { user: User }[];
+  participants: { response: string; user: User }[];
   invitations: { status: string }[];
   _count: { participants: number };
+  parentRunId: string | null;
+  recurrence: string | null;
+  threadId: string | null;
+  effectiveThreadId: string | null;
 }
 
 interface Invitation {
@@ -101,9 +105,11 @@ export function PlannedRunsClient({
     fetchInvitations();
   }, [fetchRuns, fetchInvitations]);
 
-  async function handleJoin(runId: string) {
+  async function handleJoin(runId: string, response: "going" | "maybe" = "going") {
     const res = await fetch(`/api/planned-runs/${runId}/join`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ response }),
     });
     if (res.ok) fetchRuns();
   }
@@ -231,7 +237,7 @@ export function PlannedRunsClient({
               run={run}
               userId={userId}
               isImperial={isImperial}
-              onJoin={() => handleJoin(run.id)}
+              onJoin={(response) => handleJoin(run.id, response)}
               onLeave={() => handleLeave(run.id)}
             />
           ))}
@@ -278,13 +284,18 @@ function ActivityCard({
   run: PlannedRun;
   userId: string;
   isImperial: boolean;
-  onJoin: () => void;
+  onJoin: (response: "going" | "maybe") => void;
   onLeave: () => void;
 }) {
   const isCreator = run.creatorId === userId;
-  const isParticipant = run.participants.some((p) => p.user.id === userId);
+  const myParticipation = run.participants.find((p) => p.user.id === userId);
+  const isParticipant = myParticipation != null;
+  const myResponse = myParticipation?.response as "going" | "maybe" | undefined;
   const date = new Date(run.scheduledAt);
   const isRide = run.activityType === "ride";
+  const isRecurring = run.recurrence != null || run.parentRunId != null;
+  const goingCount = run.participants.filter((p) => p.response === "going").length;
+  const maybeCount = run.participants.filter((p) => p.response === "maybe").length;
 
   const distUnit = isImperial ? "mi" : "km";
   const speedUnit = isImperial ? "mph" : "km/h";
@@ -294,9 +305,20 @@ function ActivityCard({
     <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <ActivityTypeBadge type={run.activityType} />
             <h3 className="font-semibold text-lg">{run.title}</h3>
+            {isRecurring && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                title={run.recurrence ? `repeats ${run.recurrence}` : "part of a recurring series"}
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {run.recurrence ?? "recurring"}
+              </span>
+            )}
           </div>
           <p className="text-sm text-zinc-500">
             by {run.creator.name}
@@ -353,7 +375,8 @@ function ActivityCard({
           </span>
         )}
         <span>
-          {run._count.participants} {isRide ? "riders" : "runners"}
+          {goingCount} {isRide ? "riders" : "runners"}
+          {maybeCount > 0 && ` · ${maybeCount} maybe`}
         </span>
         {run.club && (
           <span className="inline-flex items-center gap-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full">
@@ -401,25 +424,66 @@ function ActivityCard({
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center flex-wrap">
         {isCreator ? (
           <span className="text-xs text-cyan-500 font-medium px-3 py-1.5 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg">
             your activity
           </span>
         ) : isParticipant ? (
-          <button
-            onClick={onLeave}
-            className="px-4 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-lg transition-colors"
-          >
-            leave
-          </button>
+          <>
+            <button
+              onClick={() => onJoin("going")}
+              className={`px-4 py-1.5 text-sm rounded-lg transition-colors ${
+                myResponse === "going"
+                  ? "bg-cyan-500 text-white"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              }`}
+            >
+              going
+            </button>
+            <button
+              onClick={() => onJoin("maybe")}
+              className={`px-4 py-1.5 text-sm rounded-lg transition-colors ${
+                myResponse === "maybe"
+                  ? "bg-amber-400 text-white"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              }`}
+            >
+              maybe
+            </button>
+            <button
+              onClick={onLeave}
+              className="px-3 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-lg transition-colors"
+            >
+              leave
+            </button>
+          </>
         ) : (
-          <button
-            onClick={onJoin}
-            className="px-4 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
+          <>
+            <button
+              onClick={() => onJoin("going")}
+              className="px-4 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
+            >
+              going
+            </button>
+            <button
+              onClick={() => onJoin("maybe")}
+              className="px-4 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+            >
+              maybe
+            </button>
+          </>
+        )}
+        {(isCreator || isParticipant) && run.effectiveThreadId && (
+          <a
+            href={`/messages?thread=${run.effectiveThreadId}`}
+            className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:text-cyan-600 rounded-lg transition-colors"
           >
-            join
-          </button>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            chat
+          </a>
         )}
       </div>
     </div>
@@ -449,6 +513,8 @@ function CreateActivityForm({
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("10");
+  const [recurrence, setRecurrence] = useState<"" | "weekly" | "biweekly" | "monthly">("");
+  const [recurrenceEndAt, setRecurrenceEndAt] = useState("");
   const [genderRestriction, setGenderRestriction] = useState("");
   const [clubId, setClubId] = useState("");
   const [clubOnly, setClubOnly] = useState(false);
@@ -591,6 +657,8 @@ function CreateActivityForm({
           genderRestriction: genderRestriction || null,
           clubId: clubId || null,
           clubOnly,
+          recurrence: recurrence || null,
+          recurrenceEndAt: recurrenceEndAt || null,
         }),
       });
 
@@ -774,6 +842,39 @@ function CreateActivityForm({
         )}
 
         {/* max participants hidden for now — may reintroduce to auto-close invites */}
+
+        <div>
+          <label className="block text-sm font-medium mb-1">repeats</label>
+          <select
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value as typeof recurrence)}
+            className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+          >
+            <option value="">does not repeat</option>
+            <option value="weekly">weekly</option>
+            <option value="biweekly">every 2 weeks</option>
+            <option value="monthly">monthly</option>
+          </select>
+          {recurrence && (
+            <p className="text-xs text-zinc-500 mt-0.5">
+              creates up to 8 occurrences · chat is shared across the series
+            </p>
+          )}
+        </div>
+
+        {recurrence && (
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              repeat until (optional)
+            </label>
+            <input
+              type="date"
+              value={recurrenceEndAt}
+              onChange={(e) => setRecurrenceEndAt(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium mb-1">

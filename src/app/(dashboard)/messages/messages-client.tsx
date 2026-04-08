@@ -15,11 +15,29 @@ interface Message {
   sender: User;
 }
 
+interface ActivityRunSummary {
+  id: string;
+  title: string;
+  scheduledAt: string;
+  activityType: string;
+}
+
 interface Thread {
   id: string;
   hasUnread: boolean;
+  isActivity: boolean;
+  activityRun: ActivityRunSummary | null;
+  members: { user: User }[];
   otherMembers: User[];
   messages: { content: string; createdAt: string; sender: { name: string | null } }[];
+}
+
+function activityHeaderText(run: ActivityRunSummary | null): string {
+  if (!run) return "activity chat";
+  const d = new Date(run.scheduledAt);
+  const day = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${run.title} · ${day} ${time}`;
 }
 
 export function MessagesClient({ userId, initialThreadId }: { userId: string; initialThreadId?: string }) {
@@ -121,6 +139,9 @@ export function MessagesClient({ userId, initialThreadId }: { userId: string; in
                 const other = thread.otherMembers[0];
                 const lastMsg = thread.messages[0];
                 const isSelected = thread.id === selectedThreadId;
+                const title = thread.isActivity
+                  ? thread.activityRun?.title ?? "activity chat"
+                  : other?.name || "Unknown";
 
                 return (
                   <button
@@ -133,7 +154,13 @@ export function MessagesClient({ userId, initialThreadId }: { userId: string; in
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      {other?.image ? (
+                      {thread.isActivity ? (
+                        <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center text-cyan-600 dark:text-cyan-300">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        </div>
+                      ) : other?.image ? (
                         <img
                           src={other.image}
                           alt=""
@@ -151,12 +178,21 @@ export function MessagesClient({ userId, initialThreadId }: { userId: string; in
                               thread.hasUnread ? "text-cyan-500" : ""
                             }`}
                           >
-                            {other?.name || "Unknown"}
+                            {title}
                           </p>
                           {thread.hasUnread && (
                             <span className="w-2 h-2 bg-cyan-500 rounded-full flex-shrink-0" />
                           )}
                         </div>
+                        {thread.isActivity && thread.activityRun && (
+                          <p className="text-[10px] text-zinc-500">
+                            {new Date(thread.activityRun.scheduledAt).toLocaleDateString(undefined, {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </p>
+                        )}
                         {lastMsg && (
                           <p className="text-xs text-zinc-500 truncate">
                             {lastMsg.content}
@@ -176,22 +212,31 @@ export function MessagesClient({ userId, initialThreadId }: { userId: string; in
               <>
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-                  <div className="flex items-center gap-3">
-                    {selectedThread?.otherMembers[0]?.image ? (
-                      <img
-                        src={selectedThread.otherMembers[0].image}
-                        alt=""
-                        className="w-8 h-8 rounded-full"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-medium">
-                        {selectedThread?.otherMembers[0]?.name?.[0] ?? "?"}
-                      </div>
-                    )}
-                    <p className="font-medium">
-                      {selectedThread?.otherMembers[0]?.name || "Unknown"}
-                    </p>
-                  </div>
+                  {selectedThread?.isActivity ? (
+                    <div>
+                      <p className="font-medium">{activityHeaderText(selectedThread.activityRun)}</p>
+                      <p className="text-xs text-zinc-500">
+                        {(selectedThread.members?.length ?? selectedThread.otherMembers.length + 1)} participants
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {selectedThread?.otherMembers[0]?.image ? (
+                        <img
+                          src={selectedThread.otherMembers[0].image}
+                          alt=""
+                          className="w-8 h-8 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-medium">
+                          {selectedThread?.otherMembers[0]?.name?.[0] ?? "?"}
+                        </div>
+                      )}
+                      <p className="font-medium">
+                        {selectedThread?.otherMembers[0]?.name || "Unknown"}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Messages */}

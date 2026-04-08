@@ -26,6 +26,9 @@ export async function GET(
     return NextResponse.json({ error: "Not a member" }, { status: 403 });
   }
 
+  // Activity threads (linked to a planned run) skip the areConnected gate;
+  // membership is the only authorization needed.
+
   const messages = await prisma.message.findMany({
     where: { threadId },
     include: {
@@ -78,21 +81,30 @@ export async function POST(
     return NextResponse.json({ error: "Not a member" }, { status: 403 });
   }
 
-  // Gate: must still be connected with the other member(s) of the thread
-  const otherMembers = await prisma.threadMember.findMany({
-    where: { threadId, NOT: { userId: session.user.id } },
-    select: { userId: true },
+  // Look up thread metadata to decide whether the connection gate applies
+  const thread = await prisma.thread.findUnique({
+    where: { id: threadId },
+    select: { activityRunId: true },
   });
-  for (const om of otherMembers) {
-    const ok = await areConnected(session.user.id, om.userId);
-    if (!ok) {
-      return NextResponse.json(
-        {
-          error:
-            "You are no longer connected with this athlete. Reconnect to continue messaging.",
-        },
-        { status: 403 }
-      );
+
+  // Activity-chat threads are gated solely by membership (managed by join/leave).
+  // 1:1 DM threads still require an active mutual connection.
+  if (!thread?.activityRunId) {
+    const otherMembers = await prisma.threadMember.findMany({
+      where: { threadId, NOT: { userId: session.user.id } },
+      select: { userId: true },
+    });
+    for (const om of otherMembers) {
+      const ok = await areConnected(session.user.id, om.userId);
+      if (!ok) {
+        return NextResponse.json(
+          {
+            error:
+              "You are no longer connected with this athlete. Reconnect to continue messaging.",
+          },
+          { status: 403 }
+        );
+      }
     }
   }
 

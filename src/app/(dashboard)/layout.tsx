@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
@@ -11,6 +12,25 @@ export default async function DashboardLayout({
   const session = await auth();
   if (!session?.user) {
     redirect("/login");
+  }
+
+  // Onboarding gate: send first-time users through the wizard.
+  // Skip the wizard for users who already look configured (gender + a sport).
+  const flags = await prisma.user.findUnique({
+    where: { id: session.user.id! },
+    select: {
+      onboardedAt: true,
+      gender: true,
+      sportRunning: true,
+      sportCycling: true,
+    },
+  });
+  if (
+    flags &&
+    flags.onboardedAt == null &&
+    !(flags.gender && (flags.sportRunning || flags.sportCycling))
+  ) {
+    redirect("/onboarding");
   }
 
   return (

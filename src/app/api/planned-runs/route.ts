@@ -1,6 +1,9 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { addWeeks, addMonths } from "date-fns";
+
+const MAX_INSTANCES = 8;
 
 // GET /api/planned-runs - list upcoming runs
 export async function GET(request: Request) {
@@ -56,7 +59,8 @@ export async function GET(request: Request) {
         select: { id: true, name: true, profileImage: true },
       },
       participants: {
-        include: {
+        select: {
+          response: true,
           user: { select: { id: true, name: true, image: true } },
         },
       },
@@ -70,7 +74,25 @@ export async function GET(request: Request) {
     take: 50,
   });
 
-  return NextResponse.json(runs);
+  // For each run, resolve the effective thread id (root thread for series instances).
+  // Walk parentRunId once for any rows missing threadId.
+  const needRootThread = runs.filter((r) => !r.threadId && r.parentRunId);
+  const rootIds = Array.from(new Set(needRootThread.map((r) => r.parentRunId!)));
+  const roots = rootIds.length
+    ? await prisma.plannedRun.findMany({
+        where: { id: { in: rootIds } },
+        select: { id: true, threadId: true },
+      })
+    : [];
+  const rootThreadById = new Map(roots.map((r) => [r.id, r.threadId]));
+
+  const enriched = runs.map((r) => ({
+    ...r,
+    effectiveThreadId:
+      r.threadId ?? (r.parentRunId ? rootThreadById.get(r.parentRunId) ?? null : null),
+  }));
+
+  return NextResponse.json(enriched);
 }
 
 // POST /api/planned-runs - create a new planned run
@@ -97,6 +119,8 @@ export async function POST(request: Request) {
     genderRestriction,
     clubId,
     clubOnly,
+    recurrence,
+    recurrenceEndAt,
   } = body;
 
   if (!title || !scheduledAt || latitude == null || longitude == null) {
@@ -129,49 +153,109 @@ export async function POST(request: Request) {
     }
   }
 
-  const run = await prisma.plannedRun.create({
-    data: {
-      creatorId: session.user.id,
-      activityType: activityType || "run",
-      title,
-      description: description || null,
-      scheduledAt: scheduledDate,
-      estimatedPace: estimatedPace ? parseFloat(estimatedPace) : null,
-      estimatedSpeed: estimatedSpeed ? parseFloat(estimatedSpeed) : null,
-      estimatedDistance: estimatedDistance ? parseFloat(estimatedDistance) : null,
-      terrainType: terrainType || null,
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      locationName: locationName || null,
-      maxParticipants: maxParticipants ? parseInt(maxParticipants) : 10,
-      genderRestriction: genderRestriction || null,
-      clubId: clubId || null,
-      clubOnly: clubOnly === true,
-    },
-    include: {
-      creator: { select: { id: true, name: true, image: true } },
-      club: { select: { id: true, name: true, profileImage: true } },
-      _count: { select: { participants: true } },
-    },
+  const validRecurrence =
+    recurrence === "weekly" || recurrence === "biweekly" || recurrence === "monthly"
+      ? recurrence
+      : null;
+  const seriesEndAt = recurrenceEndAt ? new Date(recurrenceEndAt) : null;
+
+  const baseData = {
+    creatorId: session.user.id,
+    activityType: activityType || "run",
+    title,
+    description: description || null,
+    estimatedPace: estimatedPace ? parseFloat(estimatedPace) : null,
+    estimatedSpeed: estimatedSpeed ? parseFloat(estimatedSpeed) : null,
+    estimatedDistance: estimatedDistance ? parseFloat(estimatedDistance) : null,
+    terrainType: terrainType || null,
+    latitude: parseFloat(latitude),
+    longitude: parseFloat(longitude),
+    locationName: locationName || null,
+    maxParticipants: maxParticipants ? parseInt(maxParticipants) : 10,
+    genderRestriction: genderRestriction || null,
+    clubId: clubId || null,
+    clubOnly: clubOnly === true,
+  };
+
+  // Create the root run + its activity-chat thread atomically
+  const root = await prisma.$transaction(async (tx) => {
+    const created = await tx.plannedRun.create({
+      data: {
+        ...baseData,
+        scheduledAt: scheduledDate,
+        recurrence: validRecurrence,
+        recurrenceEndAt: seriesEndAt,
+      },
+      include: {
+        creator: { select: { id: true, name: true, image: true } },
+        club: { select: { id: true, name: true, profileImage: true } },
+        _count: { select: { participants: true } },
+      },
+    });
+
+    // Activity chat thread, creator is the first member
+    const thread = await tx.thread.create({
+      data: {
+        activityRunId: created.id,
+        members: { create: [{ userId: session.user!.id! }] },
+      },
+    });
+    const withThread = await tx.plannedRun.update({
+      where: { id: created.id },
+      data: { threadId: thread.id },
+      include: {
+        creator: { select: { id: true, name: true, image: true } },
+        club: { select: { id: true, name: true, profileImage: true } },
+        _count: { select: { participants: true } },
+      },
+    });
+
+    // Auto-join creator as participant on the root
+    await tx.plannedRunParticipant.create({
+      data: { runId: created.id, userId: session.user!.id!, response: "going" },
+    });
+
+    // Generate recurring instances (instances do NOT get their own thread; they share the root's)
+    if (validRecurrence) {
+      const instances: { date: Date }[] = [];
+      let next = scheduledDate;
+      for (let i = 0; i < MAX_INSTANCES; i++) {
+        if (validRecurrence === "weekly") next = addWeeks(next, 1);
+        else if (validRecurrence === "biweekly") next = addWeeks(next, 2);
+        else if (validRecurrence === "monthly") next = addMonths(next, 1);
+        if (seriesEndAt && next > seriesEndAt) break;
+        instances.push({ date: new Date(next) });
+      }
+
+      for (const inst of instances) {
+        const child = await tx.plannedRun.create({
+          data: {
+            ...baseData,
+            scheduledAt: inst.date,
+            parentRunId: created.id,
+          },
+        });
+        await tx.plannedRunParticipant.create({
+          data: { runId: child.id, userId: session.user!.id!, response: "going" },
+        });
+      }
+    }
+
+    return withThread;
   });
 
-  // Auto-join creator as participant
-  await prisma.plannedRunParticipant.create({
-    data: { runId: run.id, userId: session.user.id },
-  });
-
-  // Send invitations asynchronously
+  // Send invitations asynchronously (root only)
   sendInvitations(
-    run.id,
-    run.latitude,
-    run.longitude,
+    root.id,
+    root.latitude,
+    root.longitude,
     session.user.id,
     genderRestriction || null,
     clubId || null,
     clubOnly === true
   ).catch((err) => console.error("[planned-runs] invite error:", err));
 
-  return NextResponse.json(run, { status: 201 });
+  return NextResponse.json(root, { status: 201 });
 }
 
 // Send invitations based on location, club, and gender filters

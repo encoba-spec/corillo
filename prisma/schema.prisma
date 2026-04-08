@@ -57,6 +57,9 @@ model User {
   notifyTimeStart      String?  // e.g. "05:00" - earliest departure time to notify about
   notifyTimeEnd        String?  // e.g. "20:00" - latest departure time to notify about
 
+  // Onboarding (null until user completes the onboarding wizard)
+  onboardedAt          DateTime?
+
   // Privacy
   isDiscoverable       Boolean  @default(false)
   locationPrecision    String   @default("neighborhood") // neighborhood, city, hidden
@@ -254,6 +257,14 @@ model PlannedRun {
   clubId           String?  // null = not club-associated
   clubOnly         Boolean  @default(false) // if true, only club members can join
 
+  // Recurring activities
+  parentRunId      String?  // null on roots and one-offs; set on instances pointing to series root
+  recurrence       String?  // "weekly" | "biweekly" | "monthly" — only set on the root
+  recurrenceEndAt  DateTime?
+
+  // Per-activity chat: thread is set on the root for series, on the run itself for one-offs
+  threadId         String?  @unique
+
   // PostGIS geometry - populated by DB trigger
   meetingPoint     Unsupported("geometry(Point,4326)")?
 
@@ -265,15 +276,22 @@ model PlannedRun {
   participants PlannedRunParticipant[]
   invitations  RunInvitation[]
 
+  parent       PlannedRun?  @relation("PlannedRunSeries", fields: [parentRunId], references: [id], onDelete: Cascade)
+  children     PlannedRun[] @relation("PlannedRunSeries")
+
+  thread       Thread? @relation("PlannedRunThread", fields: [threadId], references: [id])
+
   @@index([scheduledAt])
   @@index([creatorId])
   @@index([clubId])
+  @@index([parentRunId])
 }
 
 model PlannedRunParticipant {
   id       String   @id @default(cuid())
   runId    String
   userId   String
+  response String   @default("going") // "going" | "maybe"
   joinedAt DateTime @default(now())
 
   run  PlannedRun @relation(fields: [runId], references: [id], onDelete: Cascade)
@@ -346,12 +364,19 @@ model RunInvitation {
 }
 
 model Thread {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  members  ThreadMember[]
-  messages Message[]
+  // When set, this thread belongs to a planned activity (the root run for a series).
+  // Membership in this thread is the only authorization needed; areConnected() is bypassed.
+  activityRunId String?
+
+  members      ThreadMember[]
+  messages     Message[]
+  activityRun  PlannedRun?    @relation("PlannedRunThread")
+
+  @@index([activityRunId])
 }
 
 model ThreadMember {
