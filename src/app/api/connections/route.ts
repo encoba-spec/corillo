@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { isBlockedBetween } from "@/lib/moderation/blocks";
 
 /**
  * GET /api/connections
@@ -95,18 +96,20 @@ export async function POST(request: Request) {
     );
   }
 
-  // Target must exist and be on the app (have a stravaAthleteId)
+  // Target must exist (any corillo user — Strava or Apple)
   const target = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, stravaAthleteId: true },
+    select: { id: true },
   });
   if (!target) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
-  if (target.stravaAthleteId == null) {
+
+  // Block check
+  if (await isBlockedBetween(me, userId)) {
     return NextResponse.json(
-      { error: "User is not on corillo yet" },
-      { status: 400 }
+      { error: "connection is not available with this user" },
+      { status: 403 }
     );
   }
 

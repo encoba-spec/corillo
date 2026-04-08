@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ConnectWithStravaButton } from "@/components/strava/ConnectWithStravaButton";
+import { SignInWithAppleButton } from "@/components/apple/SignInWithAppleButton";
+
+const appleEnabled = Boolean(
+  process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET
+);
 
 export default async function LoginPage() {
   const session = await auth();
@@ -43,6 +48,28 @@ export default async function LoginPage() {
               <ConnectWithStravaButton />
             </button>
           </form>
+
+          {appleEnabled && (
+            <>
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+                <span className="text-xs text-zinc-500">or</span>
+                <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+              </div>
+              <form
+                action={async () => {
+                  "use server";
+                  await signIn("apple", { redirectTo: "/discover" });
+                }}
+              >
+                <SignInWithAppleButton />
+              </form>
+              <p className="text-[11px] text-zinc-500 text-center mt-3">
+                Sign in with Apple gives you a basic profile. Connect Strava
+                later for activity-based matching.
+              </p>
+            </>
+          )}
 
           <p className="text-xs text-zinc-500 dark:text-zinc-500 text-center mt-6">
             We only access your public profile and activity data. Your privacy

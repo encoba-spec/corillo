@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { SyncButton } from "./sync-button";
 import { DisconnectStravaButton } from "./disconnect-strava-button";
+import { DeleteAccountButton } from "./delete-account-button";
+import { SafetyTipsLink } from "./safety-tips-link";
+import { ConnectStravaLink } from "./connect-strava-link";
 import { EditProfileForm } from "./edit-profile-form";
 import { RacesManager } from "./races-manager";
 import { PoweredByStrava } from "@/components/strava/PoweredByStrava";
@@ -293,12 +296,42 @@ export default async function ProfilePage() {
         {/* Strava connection */}
         <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
           <h3 className="font-medium mb-2">strava connection</h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
-            Disconnecting revokes corillo&apos;s access to your Strava account
-            and permanently deletes your imported activities. Your corillo
-            profile will remain but will no longer receive activity updates.
+          {user.hasStrava ? (
+            <>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+                Disconnecting revokes corillo&apos;s access to your Strava
+                account and permanently deletes your imported activities.
+                Your corillo profile will remain but will no longer receive
+                activity updates.
+              </p>
+              <DisconnectStravaButton />
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+                Connect your Strava account to enable activity-based matching:
+                pace, distance, weekly frequency, training zones, and club
+                memberships are used to find more compatible partners.
+              </p>
+              <ConnectStravaLink />
+            </>
+          )}
+        </div>
+
+        {/* Safety */}
+        <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+          <h3 className="font-medium mb-2">safety</h3>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+            Before meeting anyone from corillo in person, please review our
+            safety guidance.
           </p>
-          <DisconnectStravaButton />
+          <SafetyTipsLink />
+        </div>
+
+        {/* Delete account */}
+        <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+          <h3 className="font-medium mb-2">delete account</h3>
+          <DeleteAccountButton />
         </div>
       </div>
     </div>

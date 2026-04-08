@@ -16,21 +16,11 @@ export default async function DashboardLayout({
   }
 
   // Onboarding gate: send first-time users through the wizard.
-  // Skip the wizard for users who already look configured (gender + a sport).
   const flags = await prisma.user.findUnique({
     where: { id: session.user.id! },
-    select: {
-      onboardedAt: true,
-      gender: true,
-      sportRunning: true,
-      sportCycling: true,
-    },
+    select: { onboardedAt: true },
   });
-  if (
-    flags &&
-    flags.onboardedAt == null &&
-    !(flags.gender && (flags.sportRunning || flags.sportCycling))
-  ) {
+  if (flags && flags.onboardedAt == null) {
     redirect("/onboarding");
   }
 
@@ -90,6 +80,7 @@ export default async function DashboardLayout({
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-cyan-500">privacy</Link>
             <Link href="/terms" className="hover:text-cyan-500">terms</Link>
+            <Link href="/support" className="hover:text-cyan-500">support</Link>
             <span>not affiliated with Strava, Inc.</span>
           </div>
         </div>

@@ -186,6 +186,7 @@ export default async function LandingPage() {
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-cyan-500">privacy</Link>
             <Link href="/terms" className="hover:text-cyan-500">terms</Link>
+            <Link href="/support" className="hover:text-cyan-500">support</Link>
           </div>
           <div className="text-xs">
             <span className="text-cyan-500">corillo</span> is not affiliated with Strava, Inc.

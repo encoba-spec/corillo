@@ -25,6 +25,7 @@ interface RunnerCardProps {
   distanceScore: number;
   stravaAthleteId?: number | null;
   isOnApp?: boolean;
+  isSelfReported?: boolean;
   units?: string;
   onSelect?: (userId: string) => void;
   onConnect?: (userId: string) => void;
@@ -54,6 +55,7 @@ export function RunnerCard({
   distanceScore,
   stravaAthleteId,
   isOnApp,
+  isSelfReported = false,
   units = "metric",
   onSelect,
   onConnect,
@@ -173,10 +175,16 @@ export function RunnerCard({
             )}
           </div>
 
-          {/* Strava attribution (required for Strava-derived stats) */}
+          {/* Attribution: Strava for sourced data, label for self-reported */}
           {(displayPace || displayDistance) && (
             <div className="mt-1">
-              <PoweredByStrava width={90} />
+              {isSelfReported ? (
+                <span className="text-[9px] uppercase tracking-wider text-zinc-400">
+                  self-reported
+                </span>
+              ) : (
+                <PoweredByStrava width={90} />
+              )}
             </div>
           )}
 

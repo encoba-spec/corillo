@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { addWeeks, addMonths } from "date-fns";
+import { checkContent } from "@/lib/moderation/filter";
 
 const MAX_INSTANCES = 8;
 
@@ -128,6 +129,18 @@ export async function POST(request: Request) {
       { error: "Title, date, and location are required" },
       { status: 400 }
     );
+  }
+
+  // Objectionable content filter
+  const titleCheck = checkContent(title);
+  if (!titleCheck.ok) {
+    return NextResponse.json({ error: titleCheck.reason }, { status: 400 });
+  }
+  if (description) {
+    const descCheck = checkContent(description);
+    if (!descCheck.ok) {
+      return NextResponse.json({ error: descCheck.reason }, { status: 400 });
+    }
   }
 
   const scheduledDate = new Date(scheduledAt);

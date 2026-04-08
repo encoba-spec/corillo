@@ -60,6 +60,16 @@ model User {
   // Onboarding (null until user completes the onboarding wizard)
   onboardedAt          DateTime?
 
+  // Self-reported profile fields (used when no Strava data, e.g. Apple-only sign-in)
+  selfReportedPace     Float?   // min/km
+  selfReportedDistance Float?   // km (typical run length)
+  selfReportedFrequency Float?  // runs per week
+  hasStrava            Boolean  @default(false) // becomes true once Strava is connected
+
+  // App Store compliance
+  ageConfirmedAt       DateTime?  // user confirmed 17+ at signup
+  safetyAckAt          DateTime?  // user acknowledged safety tips
+
   // Privacy
   isDiscoverable       Boolean  @default(false)
   locationPrecision    String   @default("neighborhood") // neighborhood, city, hidden
@@ -90,6 +100,49 @@ model User {
 
   // Races the user is signed up for
   races                UserRace[]
+
+  // Moderation / compliance
+  blocksGiven          Block[]    @relation("BlocksGiven")
+  blocksReceived       Block[]    @relation("BlocksReceived")
+  reportsFiled         Report[]   @relation("ReportsFiled")
+  reportsAgainst       Report[]   @relation("ReportsAgainst")
+}
+
+/// One-way block. If A blocks B, A is hidden from B and vice versa in
+/// discovery; messages between them are rejected; invitations are blocked.
+model Block {
+  id         String   @id @default(cuid())
+  blockerId  String
+  blockedId  String
+  createdAt  DateTime @default(now())
+
+  blocker User @relation("BlocksGiven", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+/// User-filed report for moderation review. App Store 1.2 requires UGC apps
+/// to provide a reporting mechanism with response within 24h.
+model Report {
+  id              String   @id @default(cuid())
+  reporterId      String
+  targetUserId    String?
+  targetMessageId String?
+  targetRunId     String?
+  reason          String   // harassment | spam | inappropriate | safety | impersonation | other
+  details         String?
+  status          String   @default("open") // open | reviewed | dismissed | actioned
+  createdAt       DateTime @default(now())
+  reviewedAt      DateTime?
+
+  reporter   User  @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUser User? @relation("ReportsAgainst", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([targetUserId])
+  @@index([createdAt])
 }
 
 // Mutual connection (friend request) model

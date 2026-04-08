@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { areConnected } from "@/lib/connections";
+import { isBlockedBetween } from "@/lib/moderation/blocks";
+import { checkContent } from "@/lib/moderation/filter";
 import { NextResponse } from "next/server";
 
 // GET /api/messages/[threadId] - get messages in a thread
@@ -70,6 +72,12 @@ export async function POST(
     );
   }
 
+  // Objectionable content filter (App Store 1.2)
+  const check = checkContent(content);
+  if (!check.ok) {
+    return NextResponse.json({ error: check.reason }, { status: 400 });
+  }
+
   // Verify user is a member
   const membership = await prisma.threadMember.findUnique({
     where: {
@@ -87,14 +95,26 @@ export async function POST(
     select: { activityRunId: true },
   });
 
+  // Block check: refuse to send if either party has blocked the other,
+  // for both 1:1 DMs and activity-chat threads.
+  const otherMembersAll = await prisma.threadMember.findMany({
+    where: { threadId, NOT: { userId: session.user.id } },
+    select: { userId: true },
+  });
+  for (const om of otherMembersAll) {
+    const blocked = await isBlockedBetween(session.user.id, om.userId);
+    if (blocked) {
+      return NextResponse.json(
+        { error: "messaging is not available with this user." },
+        { status: 403 }
+      );
+    }
+  }
+
   // Activity-chat threads are gated solely by membership (managed by join/leave).
   // 1:1 DM threads still require an active mutual connection.
   if (!thread?.activityRunId) {
-    const otherMembers = await prisma.threadMember.findMany({
-      where: { threadId, NOT: { userId: session.user.id } },
-      select: { userId: true },
-    });
-    for (const om of otherMembers) {
+    for (const om of otherMembersAll) {
       const ok = await areConnected(session.user.id, om.userId);
       if (!ok) {
         return NextResponse.json(

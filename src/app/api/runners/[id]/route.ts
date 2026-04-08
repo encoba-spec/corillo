@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getConnectionStatus } from "@/lib/connections";
+import { isBlockedBetween } from "@/lib/moderation/blocks";
 import { NextResponse } from "next/server";
 
 // GET /api/runners/[id] - get a runner's public profile
@@ -15,6 +16,11 @@ export async function GET(
 
   const { id } = await params;
 
+  // Block check — return 404 so neither side knows they were blocked
+  if (await isBlockedBetween(session.user.id, id)) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   const user = await prisma.user.findUnique({
     where: { id },
     select: {
@@ -26,6 +32,9 @@ export async function GET(
       country: true,
       gender: true,
       stravaAthleteId: true,
+      hasStrava: true,
+      selfReportedPace: true,
+      selfReportedDistance: true,
       sportRunning: true,
       sportCycling: true,
       longRunPace: true,
@@ -89,6 +98,7 @@ export async function GET(
     country: user.country,
     gender: user.gender,
     stravaAthleteId: user.stravaAthleteId,
+    hasStrava: user.hasStrava,
     sportRunning: user.sportRunning,
     sportCycling: user.sportCycling,
     raceDistance: user.raceDistance,
@@ -115,10 +125,12 @@ export async function GET(
   profile.connectionStatus = connectionStatus;
   profile.connectionId = connectionId;
 
-  // Conditionally share pace/distance
+  // Conditionally share pace/distance. For Apple-only users with no Strava
+  // data, fall back to self-reported fields.
   if (user.sharePace) {
-    profile.averagePace = user.averagePace;
-    profile.averageDistance = user.averageDistance;
+    profile.averagePace = user.averagePace ?? user.selfReportedPace;
+    profile.averageDistance =
+      user.averageDistance ?? user.selfReportedDistance;
     profile.longRunPace = user.longRunPace;
     profile.longRunDistance = user.longRunDistance;
   }

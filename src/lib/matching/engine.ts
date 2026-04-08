@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { findNearbyRunners } from "@/lib/geo/queries";
+import { getBlockedUserIds } from "@/lib/moderation/blocks";
 import {
   compatibilityScore,
   locationScore as calcLocation,
@@ -27,6 +28,8 @@ export interface MatchResult {
   preferredTimeSlot: string | null;
   stravaAthleteId: number | null;
   isOnApp: boolean;
+  /** True when the pace/distance fields come from self-report, not Strava. */
+  isSelfReported: boolean;
   score: number;
   locationScore: number;
   scheduleScore: number;
@@ -90,12 +93,27 @@ export async function findMatches(
 
   if (nearby.length === 0) return [];
 
+  // Moderation: exclude users in a bidirectional block with the viewer.
+  const blockedIds = new Set(await getBlockedUserIds(userId));
+  const preBlockCount = nearby.length;
+  const nearbyFilteredByBlocks = nearby.filter(
+    (r) => !blockedIds.has(r.userId)
+  );
+  if (nearbyFilteredByBlocks.length !== preBlockCount) {
+    // quiet log for debugging — does not expose who
+    console.log(
+      `[matching] filtered ${preBlockCount - nearbyFilteredByBlocks.length} blocked users`
+    );
+  }
+
   // 2. Get current user's profile for scoring
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       averagePace: true,
       averageDistance: true,
+      selfReportedPace: true,
+      selfReportedDistance: true,
       gender: true,
       genderMatchWith: true,
       schedulePatterns: {
@@ -106,8 +124,14 @@ export async function findMatches(
 
   if (!currentUser) return [];
 
+  // Apple-only users (no Strava) fall back to self-reported pace/distance
+  // so they can still be scored against real candidates.
+  const effectivePace = currentUser.averagePace ?? currentUser.selfReportedPace;
+  const effectiveDistance =
+    currentUser.averageDistance ?? currentUser.selfReportedDistance;
+
   // Filter by gender match preferences (array of genders user wants to match with)
-  let filteredNearby = nearby;
+  let filteredNearby = nearbyFilteredByBlocks;
   const matchWith = currentUser.genderMatchWith;
   if (matchWith && matchWith.length > 0 && matchWith.length < 3) {
     // Not all genders selected, so filter
@@ -221,12 +245,12 @@ export async function findMatches(
   if (filteredNearby.length === 0) return [];
 
   const currentProfile: RunnerProfile = {
-    averagePace: currentUser.averagePace,
-    averageDistance: currentUser.averageDistance,
+    averagePace: effectivePace,
+    averageDistance: effectiveDistance,
     schedulePatterns: currentUser.schedulePatterns,
   };
 
-  // 4. Get schedule patterns for all candidate users
+  // 4. Get schedule patterns + self-reported fallback for all candidate users
   const candidateIds = filteredNearby.map((r) => r.userId);
   const allPatterns = await prisma.schedulePattern.findMany({
     where: { userId: { in: candidateIds } },
@@ -242,11 +266,34 @@ export async function findMatches(
     patternsByUser.get(p.userId)!.push(p);
   }
 
+  // Self-reported fallback for any candidate without Strava-derived stats
+  const needsFallback = filteredNearby
+    .filter((r) => r.averagePace == null || r.averageDistance == null)
+    .map((r) => r.userId);
+  const selfReported = await prisma.user.findMany({
+    where: { id: { in: needsFallback } },
+    select: {
+      id: true,
+      selfReportedPace: true,
+      selfReportedDistance: true,
+      hasStrava: true,
+    },
+  });
+  const selfReportedById = new Map(
+    selfReported.map((u) => [u.id, u] as const)
+  );
+
   // 5. Score each candidate
   const results: MatchResult[] = filteredNearby.map((runner) => {
+    const fallback = selfReportedById.get(runner.userId);
+    const otherPace =
+      runner.averagePace ?? fallback?.selfReportedPace ?? null;
+    const otherDistance =
+      runner.averageDistance ?? fallback?.selfReportedDistance ?? null;
+
     const otherProfile: RunnerProfile = {
-      averagePace: runner.averagePace,
-      averageDistance: runner.averageDistance,
+      averagePace: otherPace,
+      averageDistance: otherDistance,
       schedulePatterns: patternsByUser.get(runner.userId) ?? [],
     };
 
@@ -283,12 +330,14 @@ export async function findMatches(
       image: runner.image,
       city: runner.city,
       state: runner.state,
-      averagePace: runner.averagePace,
-      averageDistance: runner.averageDistance,
+      averagePace: otherPace,
+      averageDistance: otherDistance,
       weeklyFrequency: runner.weeklyFrequency,
       preferredTimeSlot: runner.preferredTimeSlot,
       stravaAthleteId: runner.stravaAthleteId,
-      isOnApp: runner.stravaAthleteId != null,
+      isOnApp: true, // user is on the app regardless of Strava connection
+      isSelfReported:
+        runner.averagePace == null && runner.averageDistance == null,
       score,
       locationScore: locScore,
       scheduleScore: schedScore,

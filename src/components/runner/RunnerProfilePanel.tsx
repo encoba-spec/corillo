@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { TIME_SLOT_LABELS } from "@/lib/matching/schedule";
 import { PoweredByStrava } from "@/components/strava/PoweredByStrava";
+import { SafetyMenu } from "@/components/moderation/SafetyMenu";
 
 const KM_TO_MI = 0.621371;
 const MI_TO_KM = 1.60934;
@@ -32,6 +33,7 @@ interface RunnerProfile {
   country: string | null;
   gender: string | null;
   stravaAthleteId: number | null;
+  hasStrava: boolean;
   sportRunning: boolean;
   sportCycling: boolean;
   averagePace: number | null;
@@ -226,25 +228,35 @@ export function RunnerProfilePanel({
 
       {/* Panel */}
       <div className="relative bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
+        {/* Top-right controls: safety menu + close */}
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
+          {profile && (
+            <SafetyMenu
+              targetUserId={profile.id}
+              targetName={profile.name}
+              onBlocked={onClose}
             />
-          </svg>
-        </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+            aria-label="close"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
 
         {loading ? (
           <div className="p-12 text-center">
@@ -442,7 +454,13 @@ export function RunnerProfilePanel({
               />
             </div>
             <div className="mb-6 -mt-3 flex justify-end">
-              <PoweredByStrava width={110} />
+              {profile.hasStrava ? (
+                <PoweredByStrava width={110} />
+              ) : (
+                <span className="text-[10px] uppercase tracking-wider text-zinc-400">
+                  self-reported
+                </span>
+              )}
             </div>
 
             {/* Training Profile */}

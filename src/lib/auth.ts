@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { customFetch } from "@auth/core";
+import Apple from "next-auth/providers/apple";
 import { prisma } from "./prisma";
 import type { NextAuthConfig } from "next-auth";
 
@@ -100,9 +101,28 @@ function createStravaProvider() {
   return provider;
 }
 
+/**
+ * Apple provider — required by App Store Guideline 4.8 as an alternative
+ * to third-party login (Strava). Users who sign in with Apple land on a
+ * bare profile; they can optionally connect Strava later for matching
+ * based on real activity data.
+ *
+ * Requires APPLE_CLIENT_ID (Services ID) and APPLE_CLIENT_SECRET (a JWT
+ * generated from your Apple private key). See /README for setup.
+ */
+const appleProviders =
+  process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET
+    ? [
+        Apple({
+          clientId: process.env.APPLE_CLIENT_ID,
+          clientSecret: process.env.APPLE_CLIENT_SECRET,
+        }),
+      ]
+    : [];
+
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
-  providers: [createStravaProvider()],
+  providers: [createStravaProvider(), ...appleProviders],
   callbacks: {
     async jwt({ token, account, profile }) {
       // On initial sign-in, store Strava tokens and athlete ID
@@ -189,6 +209,7 @@ export const authConfig: NextAuthConfig = {
               state: stravaProfile.state,
               country: stravaProfile.country,
               gender: stravaProfile.sex === "M" ? "man" : stravaProfile.sex === "F" ? "woman" : null,
+              hasStrava: true,
             },
           });
         } catch (err) {
@@ -206,6 +227,11 @@ export const authConfig: NextAuthConfig = {
             );
         }
       }
+
+      // Apple sign-in: nothing special to record — name/email are handled
+      // by the adapter. hasStrava defaults to false and the user goes
+      // through the onboarding wizard to set up their profile manually.
+
       return true;
     },
   },

@@ -15,12 +15,20 @@ interface InitialUser {
   sharePace: boolean;
   shareSchedule: boolean;
   units: string;
+  hasStrava: boolean;
+  city: string | null;
+  state: string | null;
+  country: string | null;
 }
-
-const TOTAL_STEPS = 4;
 
 export function OnboardingWizard({ initial }: { initial: InitialUser | null }) {
   const router = useRouter();
+  const hasStrava = initial?.hasStrava ?? false;
+
+  // Apple-only flow gets an extra "tell us about you" step (location + pace)
+  // and the age gate at the end.
+  const TOTAL_STEPS = hasStrava ? 5 : 6;
+
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -33,6 +41,18 @@ export function OnboardingWizard({ initial }: { initial: InitialUser | null }) {
   const [isDiscoverable, setIsDiscoverable] = useState(initial?.isDiscoverable ?? true);
   const [sharePace, setSharePace] = useState(initial?.sharePace ?? true);
   const [shareSchedule, setShareSchedule] = useState(initial?.shareSchedule ?? true);
+
+  // Self-reported fields (Apple-only path)
+  const [city, setCity] = useState(initial?.city ?? "");
+  const [state, setState] = useState(initial?.state ?? "");
+  const [selfPaceMin, setSelfPaceMin] = useState("");
+  const [selfPaceSec, setSelfPaceSec] = useState("");
+  const [selfDistance, setSelfDistance] = useState("");
+  const [selfFrequency, setSelfFrequency] = useState("");
+
+  // Age gate (both flows)
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [birthYear, setBirthYear] = useState("");
 
   function next() {
     setError("");
@@ -47,18 +67,45 @@ export function OnboardingWizard({ initial }: { initial: InitialUser | null }) {
     setSaving(true);
     setError("");
     try {
+      // Validate age gate
+      const year = birthYear ? parseInt(birthYear) : 0;
+      const now = new Date();
+      const approxAge = year > 0 ? now.getFullYear() - year : 0;
+      if (!ageConfirmed || !year || approxAge < 17 || approxAge > 120) {
+        throw new Error("you must be at least 17 to use corillo");
+      }
+
+      // Build self-reported pace in decimal minutes if provided
+      let selfReportedPace: number | null = null;
+      if (selfPaceMin) {
+        const mins = parseFloat(selfPaceMin);
+        const secs = selfPaceSec ? parseFloat(selfPaceSec) : 0;
+        if (!isNaN(mins)) selfReportedPace = mins + secs / 60;
+      }
+
+      const payload: any = {
+        gender: gender || null,
+        sportRunning,
+        sportCycling,
+        raceDistance: raceDistance || null,
+        isDiscoverable,
+        sharePace,
+        shareSchedule,
+        ageConfirmed: true,
+      };
+
+      if (!hasStrava) {
+        payload.city = city || null;
+        payload.state = state || null;
+        payload.selfReportedPace = selfReportedPace;
+        payload.selfReportedDistance = selfDistance ? parseFloat(selfDistance) : null;
+        payload.selfReportedFrequency = selfFrequency ? parseFloat(selfFrequency) : null;
+      }
+
       const res = await fetch("/api/onboarding/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gender: gender || null,
-          sportRunning,
-          sportCycling,
-          raceDistance: raceDistance || null,
-          isDiscoverable,
-          sharePace,
-          shareSchedule,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -66,8 +113,8 @@ export function OnboardingWizard({ initial }: { initial: InitialUser | null }) {
       }
       router.push("/discover");
       router.refresh();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "failed");
       setSaving(false);
     }
   }
@@ -106,15 +153,24 @@ export function OnboardingWizard({ initial }: { initial: InitialUser | null }) {
             corillo helps you find training partners nearby — runners and cyclists who
             train at your pace, near your usual routes, around the same time of day.
           </p>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-6">
-            We'll ask a few quick questions so we can match you well, then we'll import
-            your Strava activities to figure out where you typically train.
-          </p>
+          {hasStrava ? (
+            <p className="text-zinc-600 dark:text-zinc-400 mb-6">
+              We&apos;ll ask a few quick questions so we can match you well, then
+              we&apos;ll import your Strava activities to figure out where you
+              typically train.
+            </p>
+          ) : (
+            <p className="text-zinc-600 dark:text-zinc-400 mb-6">
+              We&apos;ll ask a few quick questions so we can match you well.
+              You can connect Strava later for activity-based matching with
+              more accurate pace, distance, and schedule data.
+            </p>
+          )}
           <button
             onClick={next}
             className="w-full py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-medium transition-colors"
           >
-            let's go
+            let&apos;s go
           </button>
         </div>
       )}
@@ -123,7 +179,7 @@ export function OnboardingWizard({ initial }: { initial: InitialUser | null }) {
         <div>
           <h1 className="text-2xl font-bold mb-2">a bit about you</h1>
           <p className="text-zinc-500 mb-6 text-sm">
-            Used for matching and to help others find training partners they're comfortable with.
+            Used for matching and to help others find training partners they&apos;re comfortable with.
           </p>
 
           <div className="mb-6">
@@ -210,7 +266,110 @@ export function OnboardingWizard({ initial }: { initial: InitialUser | null }) {
         </div>
       )}
 
-      {step === 3 && (
+      {/* Apple-only: manual location + self-reported stats */}
+      {!hasStrava && step === 3 && (
+        <div>
+          <h1 className="text-2xl font-bold mb-2">your training</h1>
+          <p className="text-zinc-500 mb-6 text-sm">
+            Since you haven&apos;t connected Strava yet, tell us a bit about
+            where and how you train. You can update any of this later.
+          </p>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">city</label>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="e.g. San Juan"
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">state / region</label>
+            <input
+              type="text"
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              placeholder="e.g. PR"
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              typical pace (min per {initial?.units === "imperial" ? "mile" : "km"})
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                max="20"
+                value={selfPaceMin}
+                onChange={(e) => setSelfPaceMin(e.target.value)}
+                placeholder="min"
+                className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+              />
+              <span className="self-center text-zinc-400">:</span>
+              <input
+                type="number"
+                min="0"
+                max="59"
+                value={selfPaceSec}
+                onChange={(e) => setSelfPaceSec(e.target.value)}
+                placeholder="sec"
+                className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              typical run length ({initial?.units === "imperial" ? "mi" : "km"})
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={selfDistance}
+              onChange={(e) => setSelfDistance(e.target.value)}
+              placeholder="e.g. 8"
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              runs per week
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="20"
+              step="0.5"
+              value={selfFrequency}
+              onChange={(e) => setSelfFrequency(e.target.value)}
+              placeholder="e.g. 3"
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <button
+            onClick={next}
+            disabled={!city && !state}
+            className="w-full py-3 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          >
+            continue
+          </button>
+          <p className="text-[10px] text-zinc-400 text-center mt-2">
+            we need at least a city or state so we can show you nearby athletes
+          </p>
+        </div>
+      )}
+
+      {/* Privacy step: step 3 for Strava flow, step 4 for Apple flow */}
+      {((hasStrava && step === 3) || (!hasStrava && step === 4)) && (
         <div>
           <h1 className="text-2xl font-bold mb-2">privacy & discoverability</h1>
           <p className="text-zinc-500 mb-6 text-sm">
@@ -246,18 +405,74 @@ export function OnboardingWizard({ initial }: { initial: InitialUser | null }) {
         </div>
       )}
 
-      {step === 4 && (
+      {/* Age gate step: step 4 for Strava flow, step 5 for Apple flow */}
+      {((hasStrava && step === 4) || (!hasStrava && step === 5)) && (
         <div>
-          <h1 className="text-2xl font-bold mb-2">we're importing your activities</h1>
+          <h1 className="text-2xl font-bold mb-2">age verification</h1>
+          <p className="text-zinc-500 mb-6 text-sm">
+            corillo is for athletes 17 and older. This helps us comply with
+            App Store rules and protect younger users from in-person meetups
+            with strangers.
+          </p>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">birth year</label>
+            <input
+              type="number"
+              min="1900"
+              max={new Date().getFullYear()}
+              value={birthYear}
+              onChange={(e) => setBirthYear(e.target.value)}
+              placeholder="YYYY"
+              className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <label className="flex items-start gap-3 mb-6 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={ageConfirmed}
+              onChange={(e) => setAgeConfirmed(e.target.checked)}
+              className="mt-1 w-4 h-4 accent-cyan-500"
+            />
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">
+              I confirm I am at least 17 years old and I agree to corillo&apos;s{" "}
+              <a href="/terms" target="_blank" className="text-cyan-500 underline">
+                terms
+              </a>{" "}
+              and{" "}
+              <a href="/privacy" target="_blank" className="text-cyan-500 underline">
+                privacy policy
+              </a>
+              .
+            </span>
+          </label>
+
+          <button
+            onClick={next}
+            disabled={!ageConfirmed || !birthYear}
+            className="w-full py-3 bg-cyan-500 hover:bg-cyan-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          >
+            continue
+          </button>
+        </div>
+      )}
+
+      {/* Finish step: step 5 for Strava, step 6 for Apple */}
+      {((hasStrava && step === 5) || (!hasStrava && step === 6)) && (
+        <div>
+          <h1 className="text-2xl font-bold mb-2">
+            {hasStrava ? "we're importing your activities" : "you're all set"}
+          </h1>
           <p className="text-zinc-600 dark:text-zinc-400 mb-6">
-            corillo is reading your recent Strava activities in the background to figure
-            out your usual training zones, average pace, and schedule. This usually takes
-            a minute or two — you can finish onboarding now and they'll appear shortly.
+            {hasStrava
+              ? "corillo is reading your recent Strava activities in the background to figure out your usual training zones, average pace, and schedule. This usually takes a minute or two — you can finish onboarding now and they'll appear shortly."
+              : "You're ready to discover training partners in your area. When you're ready for more accurate matching, connect Strava from your profile."}
           </p>
           <div className="bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800 rounded-lg p-4 mb-6">
             <p className="text-sm text-cyan-800 dark:text-cyan-200">
-              💡 once your zones show up, head to <span className="font-semibold">discover</span>{" "}
-              to see athletes who train near you.
+              💡 head to <span className="font-semibold">discover</span> to see
+              athletes who train near you.
             </p>
           </div>
 

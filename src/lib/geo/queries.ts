@@ -25,6 +25,10 @@ export interface NearbyRunner {
 /**
  * Find discoverable users with running zones within a radius of any of the given user's zones.
  * Uses PostGIS ST_DWithin for fast spatial pre-filtering.
+ *
+ * For users without any RunningZone rows (e.g. signed in with Apple and
+ * haven't connected Strava yet), falls back to city/state text matching
+ * so they can still discover athletes in their area.
  */
 export async function findNearbyRunners(
   userId: string,
@@ -40,19 +44,20 @@ export async function findNearbyRunners(
   const maxDistanceMeters = maxDistanceKm * 1000;
   const limit = options?.limit ?? 50;
 
-  // Build optional WHERE clauses for pace/distance filters
+  // Build optional WHERE clauses for pace/distance filters.
+  // Allow nulls so Apple-only users (who have no averagePace) still match.
   let paceFilter = "";
   if (options?.minPace != null) {
-    paceFilter += ` AND u."averagePace" >= ${options.minPace}`;
+    paceFilter += ` AND (u."averagePace" IS NULL OR u."averagePace" >= ${options.minPace})`;
   }
   if (options?.maxPace != null) {
-    paceFilter += ` AND u."averagePace" <= ${options.maxPace}`;
+    paceFilter += ` AND (u."averagePace" IS NULL OR u."averagePace" <= ${options.maxPace})`;
   }
   if (options?.minDistance != null) {
-    paceFilter += ` AND u."averageDistance" >= ${options.minDistance}`;
+    paceFilter += ` AND (u."averageDistance" IS NULL OR u."averageDistance" >= ${options.minDistance})`;
   }
   if (options?.maxDistance != null) {
-    paceFilter += ` AND u."averageDistance" <= ${options.maxDistance}`;
+    paceFilter += ` AND (u."averageDistance" IS NULL OR u."averageDistance" <= ${options.maxDistance})`;
   }
 
   const results = await prisma.$queryRawUnsafe<NearbyRunner[]>(`
@@ -85,7 +90,86 @@ export async function findNearbyRunners(
     LIMIT ${limit}
   `);
 
-  return results;
+  if (results.length > 0) return results;
+
+  // Fallback: no rows from spatial query. This happens when the user has no
+  // RunningZone (Apple-only user pre-Strava) OR when no nearby athletes have
+  // zones overlapping. We do a city/state text match on the User table.
+  return findNearbyRunnersByCity(userId, options);
+}
+
+/**
+ * Fallback discovery by city/state when the spatial query returns no rows.
+ * Self users without a RunningZone are matched against other users with the
+ * same city OR same state (depending on what they have set).
+ */
+async function findNearbyRunnersByCity(
+  userId: string,
+  options?: {
+    minPace?: number;
+    maxPace?: number;
+    minDistance?: number;
+    maxDistance?: number;
+    limit?: number;
+  }
+): Promise<NearbyRunner[]> {
+  const limit = options?.limit ?? 50;
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { city: true, state: true, country: true },
+  });
+  if (!me) return [];
+  if (!me.city && !me.state) return [];
+
+  const whereFilters: any = {
+    id: { not: userId },
+    isDiscoverable: true,
+    OR: [
+      me.city ? { city: me.city } : null,
+      me.state ? { state: me.state } : null,
+    ].filter(Boolean),
+  };
+
+  const users = await prisma.user.findMany({
+    where: whereFilters,
+    select: {
+      id: true,
+      name: true,
+      image: true,
+      city: true,
+      state: true,
+      averagePace: true,
+      averageDistance: true,
+      weeklyFrequency: true,
+      preferredTimeSlot: true,
+      stravaAthleteId: true,
+      runningZones: {
+        select: { latitude: true, longitude: true, activityCount: true },
+        take: 1,
+        orderBy: { activityCount: "desc" },
+      },
+    },
+    take: limit,
+  });
+
+  // Map to NearbyRunner shape. Without spatial data, we use 0 meters (same
+  // city implies co-located) and rely on the scorer's non-spatial dimensions.
+  return users.map((u) => ({
+    userId: u.id,
+    name: u.name,
+    image: u.image,
+    city: u.city,
+    state: u.state,
+    averagePace: u.averagePace,
+    averageDistance: u.averageDistance,
+    weeklyFrequency: u.weeklyFrequency,
+    preferredTimeSlot: u.preferredTimeSlot,
+    stravaAthleteId: u.stravaAthleteId,
+    minDistanceMeters: 0,
+    zoneLat: u.runningZones[0]?.latitude ?? 0,
+    zoneLng: u.runningZones[0]?.longitude ?? 0,
+    zoneActivityCount: u.runningZones[0]?.activityCount ?? 0,
+  }));
 }
 
 /**

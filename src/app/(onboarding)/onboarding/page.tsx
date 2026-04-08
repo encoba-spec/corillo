@@ -23,6 +23,10 @@ export default async function OnboardingPage() {
       sharePace: true,
       shareSchedule: true,
       units: true,
+      hasStrava: true,
+      city: true,
+      state: true,
+      country: true,
     },
   });
 
