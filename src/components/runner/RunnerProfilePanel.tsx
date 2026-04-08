@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { TIME_SLOT_LABELS } from "@/lib/matching/schedule";
+import { PoweredByStrava } from "@/components/strava/PoweredByStrava";
 
 const KM_TO_MI = 0.621371;
 const MI_TO_KM = 1.60934;
@@ -439,6 +440,9 @@ export function RunnerProfilePanel({
                 label="activities"
                 value={String(profile.activityCount)}
               />
+            </div>
+            <div className="mb-6 -mt-3 flex justify-end">
+              <PoweredByStrava width={110} />
             </div>
 
             {/* Training Profile */}

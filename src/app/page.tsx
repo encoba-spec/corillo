@@ -2,6 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { ConnectWithStravaButton } from "@/components/strava/ConnectWithStravaButton";
+import { PoweredByStrava } from "@/components/strava/PoweredByStrava";
 
 export default async function LandingPage() {
   const session = await auth();
@@ -22,11 +24,8 @@ export default async function LandingPage() {
             className="h-8 w-auto"
             priority
           />
-          <Link
-            href="/login"
-            className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2 rounded-lg font-medium transition-colors"
-          >
-            Sign In with Strava
+          <Link href="/login" aria-label="Connect with Strava" className="inline-flex">
+            <ConnectWithStravaButton width={200} />
           </Link>
         </div>
       </header>
@@ -49,18 +48,8 @@ export default async function LandingPage() {
             Connect with athletes near you who share your pace, schedule, and
             favorite routes. Plan group runs and never train alone again.
           </p>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-3 rounded-lg text-lg font-medium transition-colors"
-          >
-            <svg
-              className="w-6 h-6"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
-            </svg>
-            Connect with Strava
+          <Link href="/login" aria-label="Connect with Strava" className="inline-flex">
+            <ConnectWithStravaButton width={260} />
           </Link>
         </section>
 
@@ -158,7 +147,7 @@ export default async function LandingPage() {
               {
                 step: "1",
                 title: "Connect Strava",
-                desc: "Sign in with your Strava account to import your running data.",
+                desc: "Connect with Strava to import your activity data.",
               },
               {
                 step: "2",
@@ -192,8 +181,15 @@ export default async function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        <div className="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-zinc-500">
-          <span className="text-cyan-500">corillo</span> is not affiliated with Strava, Inc.
+        <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col items-center gap-3 text-sm text-zinc-500">
+          <PoweredByStrava width={130} />
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-cyan-500">privacy</Link>
+            <Link href="/terms" className="hover:text-cyan-500">terms</Link>
+          </div>
+          <div className="text-xs">
+            <span className="text-cyan-500">corillo</span> is not affiliated with Strava, Inc.
+          </div>
         </div>
       </footer>
     </div>

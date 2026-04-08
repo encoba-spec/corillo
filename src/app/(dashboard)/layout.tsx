@@ -3,6 +3,7 @@ import Image from "next/image";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { PoweredByStrava } from "@/components/strava/PoweredByStrava";
 
 export default async function DashboardLayout({
   children,
@@ -81,6 +82,18 @@ export default async function DashboardLayout({
 
       {/* Main content */}
       <main className="flex-1">{children}</main>
+
+      {/* Footer */}
+      <footer className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 mt-8">
+        <div className="max-w-7xl mx-auto px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500">
+          <PoweredByStrava width={110} />
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-cyan-500">privacy</Link>
+            <Link href="/terms" className="hover:text-cyan-500">terms</Link>
+            <span>not affiliated with Strava, Inc.</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

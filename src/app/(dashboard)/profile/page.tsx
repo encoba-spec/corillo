@@ -2,8 +2,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { SyncButton } from "./sync-button";
+import { DisconnectStravaButton } from "./disconnect-strava-button";
 import { EditProfileForm } from "./edit-profile-form";
 import { RacesManager } from "./races-manager";
+import { PoweredByStrava } from "@/components/strava/PoweredByStrava";
 import {
   DAY_LABELS,
   TIME_SLOTS,
@@ -117,6 +119,9 @@ export default async function ProfilePage() {
             label="activities"
             value={String(user._count.activities)}
           />
+        </div>
+        <div className="-mt-2 mb-4 flex justify-end">
+          <PoweredByStrava width={110} />
         </div>
 
         {/* Running Areas */}
@@ -283,6 +288,17 @@ export default async function ProfilePage() {
               </span>
             </p>
           </div>
+        </div>
+
+        {/* Strava connection */}
+        <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+          <h3 className="font-medium mb-2">strava connection</h3>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+            Disconnecting revokes corillo&apos;s access to your Strava account
+            and permanently deletes your imported activities. Your corillo
+            profile will remain but will no longer receive activity updates.
+          </p>
+          <DisconnectStravaButton />
         </div>
       </div>
     </div>

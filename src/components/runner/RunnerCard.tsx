@@ -2,6 +2,7 @@
 
 import { CompatibilityBadge } from "./CompatibilityBadge";
 import { TIME_SLOT_LABELS } from "@/lib/matching/schedule";
+import { PoweredByStrava } from "@/components/strava/PoweredByStrava";
 
 const KM_TO_MI = 0.621371;
 const MI_TO_KM = 1.60934;
@@ -171,6 +172,13 @@ export function RunnerCard({
               </span>
             )}
           </div>
+
+          {/* Strava attribution (required for Strava-derived stats) */}
+          {(displayPace || displayDistance) && (
+            <div className="mt-1">
+              <PoweredByStrava width={90} />
+            </div>
+          )}
 
           {/* Score breakdown */}
           <div className="mt-2 flex gap-1">

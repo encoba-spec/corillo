@@ -1,6 +1,8 @@
 import { signIn, auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
+import { ConnectWithStravaButton } from "@/components/strava/ConnectWithStravaButton";
 
 export default async function LoginPage() {
   const session = await auth();
@@ -35,22 +37,25 @@ export default async function LoginPage() {
           >
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-3 bg-cyan-500 hover:bg-cyan-600 text-white py-3 px-6 rounded-lg font-medium transition-colors"
+              className="w-full flex items-center justify-center"
+              aria-label="Connect with Strava"
             >
-              <svg
-                className="w-6 h-6"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
-              </svg>
-              sign in with Strava
+              <ConnectWithStravaButton />
             </button>
           </form>
 
           <p className="text-xs text-zinc-500 dark:text-zinc-500 text-center mt-6">
             We only access your public profile and activity data. Your privacy
-            settings control what others can see.
+            settings control what others can see. By continuing you agree to
+            our{" "}
+            <Link href="/terms" className="underline hover:text-cyan-500">
+              terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline hover:text-cyan-500">
+              privacy policy
+            </Link>
+            .
           </p>
         </div>
       </div>
