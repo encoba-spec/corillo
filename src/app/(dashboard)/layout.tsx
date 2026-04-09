@@ -4,6 +4,7 @@ import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { PoweredByStrava } from "@/components/strava/PoweredByStrava";
+import { ProfileMenu } from "@/components/nav/ProfileMenu";
 
 export default async function DashboardLayout({
   children,
@@ -48,52 +49,20 @@ export default async function DashboardLayout({
               <NavLink href="/planned-runs">activities</NavLink>
             </nav>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/profile"
-              className="flex items-center gap-2 text-sm hover:text-cyan-500 transition-colors"
-            >
-              {session.user.image ? (
-                <img
-                  src={session.user.image}
-                  alt=""
-                  className="w-8 h-8 rounded-full"
-                />
-              ) : (
-                <div className="w-8 h-8 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center text-xs font-medium">
-                  {session.user.name?.[0] ?? "?"}
-                </div>
-              )}
-              <span className="hidden sm:inline">{session.user.name}</span>
-            </Link>
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/" });
-              }}
-            >
-              <button
-                type="submit"
-                title="sign out"
-                aria-label="sign out"
-                className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          <ProfileMenu
+            name={session.user.name ?? null}
+            image={session.user.image ?? null}
+            signOutSlot={
+              <form
+                action={async () => {
+                  "use server";
+                  await signOut({ redirectTo: "/" });
+                }}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                  />
-                </svg>
-              </button>
-            </form>
-          </div>
+                <button type="submit">log out</button>
+              </form>
+            }
+          />
         </div>
       </header>
 
