@@ -49,10 +49,12 @@ interface PlannedRun {
   participants: { response: string; user: User }[];
   invitations: { status: string }[];
   _count: { participants: number };
-  parentRunId: string | null;
   recurrence: string | null;
+  recurrenceEndAt: string | null;
   threadId: string | null;
   effectiveThreadId: string | null;
+  /** Next upcoming occurrence (start date for one-offs). Server-computed. */
+  nextOccurrenceAt: string | null;
 }
 
 interface Invitation {
@@ -291,9 +293,11 @@ function ActivityCard({
   const myParticipation = run.participants.find((p) => p.user.id === userId);
   const isParticipant = myParticipation != null;
   const myResponse = myParticipation?.response as "going" | "maybe" | undefined;
-  const date = new Date(run.scheduledAt);
+  const isRecurring = run.recurrence != null;
+  // For recurring series, display the next upcoming occurrence; fall back to
+  // scheduledAt for legacy rows or non-recurring runs.
+  const date = new Date(run.nextOccurrenceAt ?? run.scheduledAt);
   const isRide = run.activityType === "ride";
-  const isRecurring = run.recurrence != null || run.parentRunId != null;
   const goingCount = run.participants.filter((p) => p.response === "going").length;
   const maybeCount = run.participants.filter((p) => p.response === "maybe").length;
 
@@ -310,13 +314,13 @@ function ActivityCard({
             <h3 className="font-semibold text-lg">{run.title}</h3>
             {isRecurring && (
               <span
-                className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
-                title={run.recurrence ? `repeats ${run.recurrence}` : "part of a recurring series"}
+                className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
+                title={`repeats ${run.recurrence}`}
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                {run.recurrence ?? "recurring"}
+                {run.recurrence}
               </span>
             )}
           </div>
@@ -324,6 +328,12 @@ function ActivityCard({
             by {run.creator.name}
             {run.locationName && ` \u00B7 ${run.locationName}`}
           </p>
+          {isRecurring && (
+            <p className="text-xs text-cyan-600 dark:text-cyan-400 mt-0.5">
+              next: {date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+              {" \u00B7 "}repeats {run.recurrence}
+            </p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-sm font-medium">

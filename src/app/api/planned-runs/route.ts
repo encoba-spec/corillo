@@ -1,10 +1,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { addWeeks, addMonths } from "date-fns";
 import { checkContent } from "@/lib/moderation/filter";
-
-const MAX_INSTANCES = 8;
+import {
+  isValidRecurrence,
+  nextOccurrence,
+} from "@/lib/planned-runs/recurrence";
 
 // GET /api/planned-runs - list upcoming runs
 export async function GET(request: Request) {
@@ -22,14 +23,29 @@ export async function GET(request: Request) {
     select: { gender: true },
   });
 
-  let where: any = { scheduledAt: { gte: now } };
+  // A row is considered "still listable" when:
+  //  - it's a one-off with scheduledAt in the future, OR
+  //  - it's a recurring series whose recurrenceEndAt is null or in the future.
+  // (The recurring `scheduledAt` is the series start, which may be in the past.)
+  const listableConditions: Record<string, unknown>[] = [
+    { recurrence: null, scheduledAt: { gte: now } },
+    {
+      recurrence: { not: null },
+      OR: [
+        { recurrenceEndAt: null },
+        { recurrenceEndAt: { gte: now } },
+      ],
+    },
+  ];
+
+  const andClauses: Record<string, unknown>[] = [{ OR: listableConditions }];
 
   if (filter === "mine") {
-    where.creatorId = session.user.id;
+    andClauses.push({ creatorId: session.user.id });
   } else if (filter === "invited") {
-    where.invitations = {
-      some: { userId: session.user.id },
-    };
+    andClauses.push({
+      invitations: { some: { userId: session.user.id } },
+    });
   } else if (filter === "club") {
     // Get user's club IDs
     const memberships = await prisma.clubMember.findMany({
@@ -37,21 +53,22 @@ export async function GET(request: Request) {
       select: { clubId: true },
     });
     const clubIds = memberships.map((m) => m.clubId);
-    where.clubId = { in: clubIds };
+    andClauses.push({ clubId: { in: clubIds } });
   }
 
-  // Filter out gender-restricted runs that don't match user's gender
-  // (unless it's the user's own run)
+  // Gender-restricted runs only visible to matching users (or the creator)
   if (filter !== "mine") {
-    where.OR = [
-      { genderRestriction: null },
-      { genderRestriction: user?.gender || "any" },
-      { creatorId: session.user.id },
-    ];
+    andClauses.push({
+      OR: [
+        { genderRestriction: null },
+        { genderRestriction: user?.gender || "any" },
+        { creatorId: session.user.id },
+      ],
+    });
   }
 
   const runs = await prisma.plannedRun.findMany({
-    where,
+    where: { AND: andClauses },
     include: {
       creator: {
         select: { id: true, name: true, image: true },
@@ -71,27 +88,33 @@ export async function GET(request: Request) {
       },
       _count: { select: { participants: true } },
     },
-    orderBy: { scheduledAt: "asc" },
-    take: 50,
+    take: 200,
   });
 
-  // For each run, resolve the effective thread id (root thread for series instances).
-  // Walk parentRunId once for any rows missing threadId.
-  const needRootThread = runs.filter((r) => !r.threadId && r.parentRunId);
-  const rootIds = Array.from(new Set(needRootThread.map((r) => r.parentRunId!)));
-  const roots = rootIds.length
-    ? await prisma.plannedRun.findMany({
-        where: { id: { in: rootIds } },
-        select: { id: true, threadId: true },
-      })
-    : [];
-  const rootThreadById = new Map(roots.map((r) => [r.id, r.threadId]));
-
-  const enriched = runs.map((r) => ({
-    ...r,
-    effectiveThreadId:
-      r.threadId ?? (r.parentRunId ? rootThreadById.get(r.parentRunId) ?? null : null),
-  }));
+  // Compute nextOccurrenceAt for each row and sort by it
+  const enriched = runs
+    .map((r) => {
+      const recurrence = isValidRecurrence(r.recurrence) ? r.recurrence : null;
+      const nextAt = nextOccurrence(
+        r.scheduledAt,
+        recurrence,
+        r.recurrenceEndAt ?? null,
+        now
+      );
+      return {
+        ...r,
+        nextOccurrenceAt: nextAt,
+        // Legacy alias — some older clients may still read this key
+        effectiveThreadId: r.threadId,
+      };
+    })
+    .filter((r) => r.nextOccurrenceAt !== null)
+    .sort(
+      (a, b) =>
+        (a.nextOccurrenceAt as Date).getTime() -
+        (b.nextOccurrenceAt as Date).getTime()
+    )
+    .slice(0, 50);
 
   return NextResponse.json(enriched);
 }
@@ -166,10 +189,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const validRecurrence =
-    recurrence === "weekly" || recurrence === "biweekly" || recurrence === "monthly"
-      ? recurrence
-      : null;
+  const validRecurrence = isValidRecurrence(recurrence) ? recurrence : null;
   const seriesEndAt = recurrenceEndAt ? new Date(recurrenceEndAt) : null;
 
   const baseData = {
@@ -190,7 +210,9 @@ export async function POST(request: Request) {
     clubOnly: clubOnly === true,
   };
 
-  // Create the root run + its activity-chat thread atomically
+  // Create a single planned-run row (even for recurring series) plus its
+  // persistent chat thread, atomically. Recurring occurrences are computed
+  // on the fly and never materialized as additional rows.
   const root = await prisma.$transaction(async (tx) => {
     const created = await tx.plannedRun.create({
       data: {
@@ -199,20 +221,15 @@ export async function POST(request: Request) {
         recurrence: validRecurrence,
         recurrenceEndAt: seriesEndAt,
       },
-      include: {
-        creator: { select: { id: true, name: true, image: true } },
-        club: { select: { id: true, name: true, profileImage: true } },
-        _count: { select: { participants: true } },
-      },
     });
 
-    // Activity chat thread, creator is the first member
     const thread = await tx.thread.create({
       data: {
         activityRunId: created.id,
         members: { create: [{ userId: session.user!.id! }] },
       },
     });
+
     const withThread = await tx.plannedRun.update({
       where: { id: created.id },
       data: { threadId: thread.id },
@@ -223,36 +240,9 @@ export async function POST(request: Request) {
       },
     });
 
-    // Auto-join creator as participant on the root
     await tx.plannedRunParticipant.create({
       data: { runId: created.id, userId: session.user!.id!, response: "going" },
     });
-
-    // Generate recurring instances (instances do NOT get their own thread; they share the root's)
-    if (validRecurrence) {
-      const instances: { date: Date }[] = [];
-      let next = scheduledDate;
-      for (let i = 0; i < MAX_INSTANCES; i++) {
-        if (validRecurrence === "weekly") next = addWeeks(next, 1);
-        else if (validRecurrence === "biweekly") next = addWeeks(next, 2);
-        else if (validRecurrence === "monthly") next = addMonths(next, 1);
-        if (seriesEndAt && next > seriesEndAt) break;
-        instances.push({ date: new Date(next) });
-      }
-
-      for (const inst of instances) {
-        const child = await tx.plannedRun.create({
-          data: {
-            ...baseData,
-            scheduledAt: inst.date,
-            parentRunId: created.id,
-          },
-        });
-        await tx.plannedRunParticipant.create({
-          data: { runId: child.id, userId: session.user!.id!, response: "going" },
-        });
-      }
-    }
 
     return withThread;
   });

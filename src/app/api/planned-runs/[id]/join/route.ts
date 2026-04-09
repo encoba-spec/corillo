@@ -3,38 +3,23 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 /**
- * Resolve the root planned-run id (the series root) and its thread id.
- * For one-offs the run IS its own root.
+ * Lazily create a chat thread for a planned run that doesn't have one yet.
+ * Only needed for legacy rows created before per-activity chat existed.
  */
-async function resolveRoot(runId: string) {
-  const run = await prisma.plannedRun.findUnique({
-    where: { id: runId },
-    select: { id: true, parentRunId: true, threadId: true },
-  });
-  if (!run) return null;
-  if (!run.parentRunId) return run; // already the root
-  const root = await prisma.plannedRun.findUnique({
-    where: { id: run.parentRunId },
-    select: { id: true, parentRunId: true, threadId: true },
-  });
-  return root;
-}
-
-/** Lazily create a chat thread for a root that doesn't have one yet (legacy rows). */
-async function ensureRootThread(rootId: string, creatorUserId: string) {
+async function ensureThread(runId: string, creatorUserId: string) {
   const existing = await prisma.plannedRun.findUnique({
-    where: { id: rootId },
+    where: { id: runId },
     select: { threadId: true },
   });
   if (existing?.threadId) return existing.threadId;
   const thread = await prisma.thread.create({
     data: {
-      activityRunId: rootId,
+      activityRunId: runId,
       members: { create: [{ userId: creatorUserId }] },
     },
   });
   await prisma.plannedRun.update({
-    where: { id: rootId },
+    where: { id: runId },
     data: { threadId: thread.id },
   });
   return thread.id;
@@ -66,7 +51,6 @@ export async function POST(
       genderRestriction: true,
       clubOnly: true,
       clubId: true,
-      parentRunId: true,
     },
   });
 
@@ -106,15 +90,14 @@ export async function POST(
     update: { response },
   });
 
-  // Update invitation status to mirror RSVP
+  // Mirror RSVP onto any matching invitation
   await prisma.runInvitation.updateMany({
     where: { runId, userId },
     data: { status: response === "going" ? "accepted" : "maybe" },
   });
 
-  // Add user to the activity chat thread on the effective root
-  const effectiveRootId = run.parentRunId ?? run.id;
-  const threadId = await ensureRootThread(effectiveRootId, run.creatorId);
+  // Add user to the activity chat thread (creates it if missing for legacy rows)
+  const threadId = await ensureThread(runId, run.creatorId);
   await prisma.threadMember.upsert({
     where: { threadId_userId: { threadId, userId } },
     create: { threadId, userId },
@@ -139,7 +122,7 @@ export async function DELETE(
 
   const run = await prisma.plannedRun.findUnique({
     where: { id: runId },
-    select: { id: true, creatorId: true, parentRunId: true },
+    select: { id: true, creatorId: true, threadId: true },
   });
 
   if (!run) {
@@ -157,27 +140,11 @@ export async function DELETE(
     where: { runId, userId },
   });
 
-  // Only remove from the chat thread if the user is no longer in any sibling
-  // instance of the same series (so they don't lose chat for other dates).
-  const rootId = run.parentRunId ?? run.id;
-  const stillInSeries = await prisma.plannedRunParticipant.findFirst({
-    where: {
-      userId,
-      run: { OR: [{ id: rootId }, { parentRunId: rootId }] },
-    },
-    select: { id: true },
-  });
-
-  if (!stillInSeries) {
-    const root = await prisma.plannedRun.findUnique({
-      where: { id: rootId },
-      select: { threadId: true },
+  // Leaving an activity also removes you from its persistent chat
+  if (run.threadId) {
+    await prisma.threadMember.deleteMany({
+      where: { threadId: run.threadId, userId },
     });
-    if (root?.threadId) {
-      await prisma.threadMember.deleteMany({
-        where: { threadId: root.threadId, userId },
-      });
-    }
   }
 
   return NextResponse.json({ left: true });

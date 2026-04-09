@@ -310,12 +310,13 @@ model PlannedRun {
   clubId           String?  // null = not club-associated
   clubOnly         Boolean  @default(false) // if true, only club members can join
 
-  // Recurring activities
-  parentRunId      String?  // null on roots and one-offs; set on instances pointing to series root
-  recurrence       String?  // "weekly" | "biweekly" | "monthly" — only set on the root
+  // Recurring activities: one single row represents the whole series.
+  // `scheduledAt` is the series start; `recurrence` drives future occurrences
+  // that are computed on the fly (no child rows).
+  recurrence       String?  // "weekly" | "biweekly" | "monthly"
   recurrenceEndAt  DateTime?
 
-  // Per-activity chat: thread is set on the root for series, on the run itself for one-offs
+  // Per-activity chat — shared for the whole series so it persists across occurrences
   threadId         String?  @unique
 
   // PostGIS geometry - populated by DB trigger
@@ -329,15 +330,11 @@ model PlannedRun {
   participants PlannedRunParticipant[]
   invitations  RunInvitation[]
 
-  parent       PlannedRun?  @relation("PlannedRunSeries", fields: [parentRunId], references: [id], onDelete: Cascade)
-  children     PlannedRun[] @relation("PlannedRunSeries")
-
   thread       Thread? @relation("PlannedRunThread", fields: [threadId], references: [id])
 
   @@index([scheduledAt])
   @@index([creatorId])
   @@index([clubId])
-  @@index([parentRunId])
 }
 
 model PlannedRunParticipant {
