@@ -43,7 +43,7 @@ export default async function DashboardLayout({
             <nav className="flex items-center gap-1">
               <NavLink href="/discover">discover</NavLink>
               <NavLink href="/matches">
-                your <span className="text-cyan-500">corillo</span>
+                my <span className="text-cyan-500">corillo</span>
               </NavLink>
               <NavLink href="/messages">messages</NavLink>
               <NavLink href="/planned-runs">activities</NavLink>

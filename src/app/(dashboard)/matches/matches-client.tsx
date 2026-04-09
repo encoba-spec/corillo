@@ -107,7 +107,7 @@ export function MatchesClient({ units = "metric" }: MatchesClientProps) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold mb-1">
-        your <span className="text-cyan-500">corillo</span>
+        my <span className="text-cyan-500">corillo</span>
       </h1>
       <p className="text-sm text-zinc-500 mb-6">
         the athletes you&apos;ve connected with
@@ -181,7 +181,7 @@ export function MatchesClient({ units = "metric" }: MatchesClientProps) {
         ) : accepted.length === 0 ? (
           <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 text-center">
             <p className="text-zinc-500 font-medium">
-              your <span className="text-cyan-500">corillo</span> is empty
+              my <span className="text-cyan-500">corillo</span> is empty
             </p>
             <p className="text-sm text-zinc-400 mt-1">
               Head to discover to send connection requests.
